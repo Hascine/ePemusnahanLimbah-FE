@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { dataAPI } from '../services/api';
-import { formatDateTimeID, formatDateID, formatTimeID } from '../utils/time';
-import { getBaseUrl } from '../utils/urlHelper';
-import { useAuth } from '../contexts/AuthContext';
-import { useConfigContext } from '../contexts/ConfigContext';
+import { useState, useEffect } from "react";
+import { dataAPI } from "../services/api";
+import { formatDateTimeID, formatDateID, formatTimeID } from "../utils/time";
+import { getBaseUrl } from "../utils/urlHelper";
+import { useAuth } from "../contexts/AuthContext";
+import { useConfigContext } from "../contexts/ConfigContext";
 import {
   getJenisDisplayName,
   getStatusDisplayName,
   getBeritaAcaraStatusDisplayName,
   DEFAULT_JENIS_OPTIONS,
-  DEFAULT_GOLONGAN_OPTIONS
-} from '../constants/referenceData';
-import SigningWorkflowSteps from '../components/SigningWorkflowSteps';
+  DEFAULT_GOLONGAN_OPTIONS,
+} from "../constants/referenceData";
+import SigningWorkflowSteps from "../components/SigningWorkflowSteps";
 import { showSuccess, showError, showConfirmation } from "../utils/sweetAlert";
 
 // Use centralized Jakarta formatters so displayed timestamps match stored Jakarta wall-clock
@@ -41,9 +41,9 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       try {
         // 1. Fetch main berita acara data
         const response = await dataAPI.getBeritaAcaraById(beritaAcaraId);
-        
+
         if (!response.data.success) {
-          setError(response.data.message || 'Failed to fetch berita acara details');
+          setError(response.data.message || "Failed to fetch berita acara details");
           return;
         }
 
@@ -52,7 +52,12 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         // If the wrapper has { data: ... } repeatedly, unwrap until we find the actual event object
         const maxUnwrap = 5;
         let unwrapCount = 0;
-        while (beritaAcaraData && typeof beritaAcaraData === 'object' && beritaAcaraData.data && unwrapCount < maxUnwrap) {
+        while (
+          beritaAcaraData &&
+          typeof beritaAcaraData === "object" &&
+          beritaAcaraData.data &&
+          unwrapCount < maxUnwrap
+        ) {
           beritaAcaraData = beritaAcaraData.data;
           unwrapCount += 1;
         }
@@ -65,79 +70,89 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         // 2. Extract data directly from API response (no fallback logic needed)
         const requests = beritaAcaraData.PermohonanPemusnahanLimbahs || [];
         const firstReq = requests[0];
-        
+
         // Build daftar pemusnahan
-        const daftar = requests.map(req => {
+        const daftar = requests.map((req) => {
           const details = req.DetailLimbahs || [];
-          const jumlahItem = req.jumlah_item || (details.reduce ? details.reduce((s, d) => s + (d.jumlah_item || 0), 0) : 0);
+          const jumlahItem =
+            req.jumlah_item || (details.reduce ? details.reduce((s, d) => s + (d.jumlah_item || 0), 0) : 0);
           const bobotTotal = details.reduce((s, d) => s + parseFloat(d.bobot || 0), 0);
-          const alasanPemusnahan = details.map(d => d.alasan_pemusnahan).filter(Boolean).join('; ');
+          const alasanPemusnahan = details
+            .map((d) => d.alasan_pemusnahan)
+            .filter(Boolean)
+            .join("; ");
 
           return {
             request_id: req.request_id,
             noPermohonan: req.nomor_permohonan || `DRAFT-${req.request_id}`,
             bentukLimbah: req.bentuk_limbah,
-            golonganLimbah: req.GolonganLimbah ? req.GolonganLimbah.nama : '',
-            jenisLimbah: req.JenisLimbahB3 ? req.JenisLimbahB3.nama : '',
+            golonganLimbah: req.GolonganLimbah ? req.GolonganLimbah.nama : "",
+            jenisLimbah: req.JenisLimbahB3 ? req.JenisLimbahB3.nama : "",
             jumlahItem,
             bobotTotal: Number(bobotTotal.toFixed(2)),
-            alasanPemusnahan
+            alasanPemusnahan,
           };
         });
 
         // Build detail BAP
         const detailBAP = {
-          divisi: beritaAcaraData.bagian || '-',
-          hariTanggal: beritaAcaraData.tanggal ? formatDateID(beritaAcaraData.tanggal) : '-',
-          jamWaktu: beritaAcaraData.waktu ? formatTimeID(beritaAcaraData.waktu) : '-',
-          lokasiVerifikasi: beritaAcaraData.lokasi_verifikasi || '-',
-          pelaksanaBagian: beritaAcaraData.pelaksana_bagian || beritaAcaraData.pelaksanaBagian || '-',
-          supervisorOfficerBagian: beritaAcaraData.supervisor_bagian || beritaAcaraData.supervisorBagian || '-',
-          pelaksanaHSE: beritaAcaraData.pelaksana_hse || beritaAcaraData.pelaksanaHSE || '-',
-          supervisorOfficerHSE: beritaAcaraData.supervisor_hse || beritaAcaraData.supervisorHSE || '-'
+          divisi: beritaAcaraData.bagian || "-",
+          hariTanggal: beritaAcaraData.tanggal ? formatDateID(beritaAcaraData.tanggal) : "-",
+          jamWaktu: beritaAcaraData.waktu ? formatTimeID(beritaAcaraData.waktu) : "-",
+          lokasiVerifikasi: beritaAcaraData.lokasi_verifikasi || "-",
+          pelaksanaBagian: beritaAcaraData.pelaksana_bagian || beritaAcaraData.pelaksanaBagian || "-",
+          supervisorOfficerBagian: beritaAcaraData.supervisor_bagian || beritaAcaraData.supervisorBagian || "-",
+          pelaksanaHSE: beritaAcaraData.pelaksana_hse || beritaAcaraData.pelaksanaHSE || "-",
+          supervisorOfficerHSE: beritaAcaraData.supervisor_hse || beritaAcaraData.supervisorHSE || "-",
         };
 
         // Prefer backend-provided current_step_level (keeps detail consistent with list view)
         let currentStepLevel = null;
-        if (typeof beritaAcaraData.current_step_level !== 'undefined' && beritaAcaraData.current_step_level !== null) {
+        if (typeof beritaAcaraData.current_step_level !== "undefined" && beritaAcaraData.current_step_level !== null) {
           currentStepLevel = beritaAcaraData.current_step_level;
         } else if (beritaAcaraData.current_signing_step_id) {
-          const matching = (beritaAcaraData.SigningWorkflowSteps || []).find(s => s.step_id === beritaAcaraData.current_signing_step_id);
+          const matching = (beritaAcaraData.SigningWorkflowSteps || []).find(
+            (s) => s.step_id === beritaAcaraData.current_signing_step_id
+          );
           if (matching) {
             currentStepLevel = matching.step_level === 1 ? 2 : matching.step_level;
           }
         } else {
           // Fallback: find first pending step >= 2
-          const pending = (beritaAcaraData.SigningWorkflowSteps || []).find(s => (s.status || '').toString().toLowerCase() === 'pending' && s.step_level >= 2);
+          const pending = (beritaAcaraData.SigningWorkflowSteps || []).find(
+            (s) => (s.status || "").toString().toLowerCase() === "pending" && s.step_level >= 2
+          );
           currentStepLevel = pending ? pending.step_level : 2;
         }
 
         // Transform main data
         const transformedData = {
           id: beritaAcaraData.berita_acara_id,
-          noBeritaAcara: `BA-${String(beritaAcaraData.berita_acara_id).padStart(3, '0')}`,
+          noBeritaAcara: `BA-${String(beritaAcaraData.berita_acara_id).padStart(3, "0")}`,
           tanggal: beritaAcaraData.tanggal,
           waktu: beritaAcaraData.waktu,
           lokasi_verifikasi: beritaAcaraData.lokasi_verifikasi,
-          creator: beritaAcaraData.creator_name || '',
-          creatorJabatan: beritaAcaraData.creator_jabatan || '',
-          status: beritaAcaraData.status || 'Draft',
+          creator: beritaAcaraData.creator_name || "",
+          creatorJabatan: beritaAcaraData.creator_jabatan || "",
+          status: beritaAcaraData.status || "Draft",
           requests,
           daftarPemusnahan: daftar,
           detailBAP,
           created_at: beritaAcaraData.created_at,
-          
+
           // Extract data for SigningWorkflowSteps (following DetailAjuan pattern)
           requestId: firstReq?.request_id || null,
-          currentStatus: beritaAcaraData.status || 'Draft',
-          requesterName: beritaAcaraData.creator_name || '',
+          currentStatus: beritaAcaraData.status || "Draft",
+          requesterName: beritaAcaraData.creator_name || "",
           submittedAt: beritaAcaraData.created_at,
           golonganLimbahId: firstReq?.golongan_limbah_id || null,
-          golonganLimbahName: firstReq?.GolonganLimbah?.nama || '',
+          golonganLimbahName: firstReq?.GolonganLimbah?.nama || "",
           currentStepLevel: currentStepLevel,
-          bagian: beritaAcaraData.bagian || '',
+          bagian: beritaAcaraData.bagian || "",
           // Check if any of the related requests is produk pangan
-          isProdukPangan: (beritaAcaraData.PermohonanPemusnahanLimbahs || []).some(req => req.is_produk_pangan === true)
+          isProdukPangan: (beritaAcaraData.PermohonanPemusnahanLimbahs || []).some(
+            (req) => req.is_produk_pangan === true
+          ),
         };
 
         setData(transformedData);
@@ -152,12 +167,16 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
           try {
             // normalize and sort by step_level
             const normalized = signingWorkflowData
-              .map(s => ({ ...s, step_level: Number(s.step_level || s.stepLevel || 0), status: (s.status || '').toString().toLowerCase() }))
-              .filter(s => s.step_level >= 2)
+              .map((s) => ({
+                ...s,
+                step_level: Number(s.step_level || s.stepLevel || 0),
+                status: (s.status || "").toString().toLowerCase(),
+              }))
+              .filter((s) => s.step_level >= 2)
               .sort((a, b) => a.step_level - b.step_level);
 
             // find the first step that is not signed (no signed_at and status !== 'signed')
-            const nextPending = normalized.find(s => !(s.status === 'signed' || s.signed_at));
+            const nextPending = normalized.find((s) => !(s.status === "signed" || s.signed_at));
 
             if (nextPending) {
               transformedData.currentStepLevel = nextPending.step_level;
@@ -165,30 +184,37 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
               transformedData.status = beritaAcaraData.status || transformedData.status;
 
               // decide canSign from the next pending step's signers only if backend didn't provide can_sign
-              if (typeof beritaAcaraData.can_sign === 'undefined') {
+              if (typeof beritaAcaraData.can_sign === "undefined") {
                 try {
                   const myNik = user && (user.log_NIK || user.emp_NIK || user.log_nik || user.NIK);
                   let allowed = false;
                   if (Array.isArray(nextPending.signers)) {
-                    allowed = nextPending.signers.some(sig => {
-                      const v = (sig.log_nik || sig.Appr_ID || sig.signer_id || sig.signer_identity || sig.signer_identity_id || '').toString();
+                    allowed = nextPending.signers.some((sig) => {
+                      const v = (
+                        sig.log_nik ||
+                        sig.Appr_ID ||
+                        sig.signer_id ||
+                        sig.signer_identity ||
+                        sig.signer_identity_id ||
+                        ""
+                      ).toString();
                       return myNik && v && String(myNik) === String(v);
                     });
                   }
                   setCanSign(!!allowed);
                 } catch (e) {
                   // if something goes wrong determining permission, leave canSign as-is
-                  console.warn('Failed to compute canSign from signing workflow:', e);
+                  console.warn("Failed to compute canSign from signing workflow:", e);
                 }
               }
             } else {
               // no pending unsigned steps -> Completed
-              transformedData.status = 'Completed';
+              transformedData.status = "Completed";
               transformedData.currentStepLevel = null;
               setCanSign(false);
             }
           } catch (e) {
-            console.warn('Error processing SigningWorkflowSteps:', e);
+            console.warn("Error processing SigningWorkflowSteps:", e);
           }
         } else {
           // Fallback: try to fetch signing workflow by request id if API did not include it
@@ -200,20 +226,19 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
                 setSigningWorkflow(signingWorkflowData);
               }
             } catch (wfError) {
-              console.error('Error fetching signing workflow fallback:', wfError);
+              console.error("Error fetching signing workflow fallback:", wfError);
             }
           }
         }
 
-
         // Determine canSign: prefer backend's can_sign flag which already contains the authorization logic
-        if (typeof beritaAcaraData.can_sign !== 'undefined') {
+        if (typeof beritaAcaraData.can_sign !== "undefined") {
           // Trust the backend's authorization calculation
           setCanSign(!!beritaAcaraData.can_sign);
         } else if (Array.isArray(signingWorkflowData) && signingWorkflowData.length > 0) {
           // Fallback: if backend doesn't provide can_sign, use workflow-derived permission
           // canSign was already set above when computing next pending step, but ensure a sensible default
-          setCanSign(prev => !!prev);
+          setCanSign((prev) => !!prev);
         } else {
           // Final fallback: allow signing if current user appears in signing workflow signers
           try {
@@ -227,25 +252,30 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
             };
 
             const steps = normalizeSteps(signingWorkflowData);
-            const current = steps.find(s => Number(s.step_level) === Number(transformedData.currentStepLevel));
+            const current = steps.find((s) => Number(s.step_level) === Number(transformedData.currentStepLevel));
             let listed = false;
             if (current && Array.isArray(current.signers)) {
-              listed = current.signers.some(s => {
-                const v = (s.log_nik || s.Appr_ID || s.signer_id || s.signer_identity || s.signer_identity_id || '').toString();
+              listed = current.signers.some((s) => {
+                const v = (
+                  s.log_nik ||
+                  s.Appr_ID ||
+                  s.signer_id ||
+                  s.signer_identity ||
+                  s.signer_identity_id ||
+                  ""
+                ).toString();
                 return myNik && v && String(myNik) === String(v);
               });
             }
 
             if (listed) setCanSign(true);
           } catch (e) {
-            console.warn('Failed to evaluate signingWorkflow signers for permission:', e);
+            console.warn("Failed to evaluate signingWorkflow signers for permission:", e);
           }
         }
-        
-
       } catch (err) {
-        console.error('Error fetching berita acara detail:', err);
-        setError('Error fetching berita acara details');
+        console.error("Error fetching berita acara detail:", err);
+        setError("Error fetching berita acara details");
       } finally {
         setLoading(false);
       }
@@ -272,7 +302,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
     try {
       setLoading(true);
       const response = await dataAPI.signBeritaAcara(beritaAcaraId);
-      
+
       if (response.data.success) {
         showSuccess(response.data.message || "Berita Acara signed successfully!");
         window.location.reload();
@@ -280,7 +310,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         showError("Error: " + (response.data.message || "Failed to sign berita acara"));
       }
     } catch (error) {
-      console.error('Error signing berita acara:', error);
+      console.error("Error signing berita acara:", error);
       showError("Error signing berita acara.");
     } finally {
       setLoading(false);
@@ -295,14 +325,14 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
 
     try {
       setBeritaAcaraLoading(true);
-      
+
       // Fetch berita acara data first to get the required info
       const res = await dataAPI.getBeritaAcaraDataForDoc(beritaAcaraId);
       if (!res.data.success) {
-        showError(res.data?.message || 'Gagal memuat data berita acara');
+        showError(res.data?.message || "Gagal memuat data berita acara");
         return;
       }
-      
+
       const beritaAcaraData = res.data.data;
       const BASE_URL_FE = getBaseUrl();
       const link = `${BASE_URL_FE}/berita-acara-pemusnahan/print/${beritaAcaraId}`;
@@ -314,27 +344,31 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         if (printRes?.data?.success && printRes.data.data) {
           // response.data.data is an ArrayBuffer
           const arrayBuffer = printRes.data.data;
-          const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+          const blob = new Blob([arrayBuffer], { type: "application/pdf" });
           const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-          console.log('PDF generated successfully');
+          window.open(url, "_blank");
+          console.log("PDF generated successfully");
         } else {
-          console.warn('Print request failed:', printRes?.data?.message);
+          console.warn("Print request failed:", printRes?.data?.message);
           // Fallback to direct URL
-          const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
-          const printUrl = `${BASE_URL}/document-generation/print-berita-acara-pemusnahan?link=${encodeURIComponent(link)}&beritaAcaraId=${encodeURIComponent(beritaAcaraId)}&createdAt=${encodeURIComponent(createdAt)}`;
-          window.open(printUrl, '_blank');
+          const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
+          const printUrl = `${BASE_URL}/document-generation/print-berita-acara-pemusnahan?link=${encodeURIComponent(
+            link
+          )}&beritaAcaraId=${encodeURIComponent(beritaAcaraId)}&createdAt=${encodeURIComponent(createdAt)}`;
+          window.open(printUrl, "_blank");
         }
       } catch (printErr) {
-        console.warn('Print API call failed:', printErr.message);
+        console.warn("Print API call failed:", printErr.message);
         // Fallback to direct URL
-        const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
-        const printUrl = `${BASE_URL}/document-generation/print-berita-acara-pemusnahan?link=${encodeURIComponent(link)}&beritaAcaraId=${encodeURIComponent(beritaAcaraId)}&createdAt=${encodeURIComponent(createdAt)}`;
-        window.open(printUrl, '_blank');
+        const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
+        const printUrl = `${BASE_URL}/document-generation/print-berita-acara-pemusnahan?link=${encodeURIComponent(
+          link
+        )}&beritaAcaraId=${encodeURIComponent(beritaAcaraId)}&createdAt=${encodeURIComponent(createdAt)}`;
+        window.open(printUrl, "_blank");
       }
     } catch (err) {
-      console.error('Error generating PDF:', err);
-      showError('Gagal membuat PDF berita acara');
+      console.error("Error generating PDF:", err);
+      showError("Gagal membuat PDF berita acara");
     } finally {
       setBeritaAcaraLoading(false);
     }
@@ -342,62 +376,62 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
 
   const handleDownloadExcel = async (requestId) => {
     if (!requestId) {
-      showError('ID permohonan tidak tersedia');
+      showError("ID permohonan tidak tersedia");
       return;
     }
 
     try {
-      setExcelLoadingStates(prev => ({ ...prev, [requestId]: true }));
+      setExcelLoadingStates((prev) => ({ ...prev, [requestId]: true }));
       const response = await dataAPI.downloadPermohonanExcel(requestId);
-      
+
       if (response.data.success && response.data.data) {
         // Create and download Excel file
         const arrayBuffer = response.data.data;
-        const blob = new Blob([arrayBuffer], { 
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        const blob = new Blob([arrayBuffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
-        
+
         // Create download link
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        const permohonanItem = data.daftarPemusnahan.find(item => item.request_id === requestId);
+        const permohonanItem = data.daftarPemusnahan.find((item) => item.request_id === requestId);
         link.download = `detail-limbah-${permohonanItem?.noPermohonan || requestId}.xlsx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        
-        console.log('Excel file downloaded successfully');
+
+        console.log("Excel file downloaded successfully");
       } else {
-        showError('Gagal mengunduh lampiran Excel: ' + (response.data.message || 'Unknown error'));
+        showError("Gagal mengunduh lampiran Excel: " + (response.data.message || "Unknown error"));
       }
     } catch (err) {
-      console.error('Error downloading Excel:', err);
-      showError('Gagal mengunduh lampiran Excel');
+      console.error("Error downloading Excel:", err);
+      showError("Gagal mengunduh lampiran Excel");
     } finally {
-      setExcelLoadingStates(prev => ({ ...prev, [requestId]: false }));
+      setExcelLoadingStates((prev) => ({ ...prev, [requestId]: false }));
     }
   };
 
   const handleGeneratePermohonanPDF = async (requestId) => {
     if (!requestId) {
-      showError('ID permohonan tidak tersedia');
+      showError("ID permohonan tidak tersedia");
       return;
     }
 
     try {
-      setPermohonanLoadingStates(prev => ({ ...prev, [requestId]: true }));
-      
+      setPermohonanLoadingStates((prev) => ({ ...prev, [requestId]: true }));
+
       // Fetch permohonan data first to get the required info
       const res = await dataAPI.getPermohonanDataForDoc(requestId);
       if (!res.data.success) {
-        showError(res.data?.message || 'Gagal memuat data permohonan');
+        showError(res.data?.message || "Gagal memuat data permohonan");
         return;
       }
-      
+
       const permohonanData = res.data.data;
-      const BASE_URL_FE = window.location.origin;
+      const BASE_URL_FE = getBaseUrl();
       const link = `${BASE_URL_FE}/permohonan-pemusnahan/print/${requestId}`;
       const createdAt = permohonanData?.tanggal_pengajuan || new Date().toISOString();
 
@@ -407,29 +441,33 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         if (printRes?.data?.success && printRes.data.data) {
           // response.data.data is an ArrayBuffer
           const arrayBuffer = printRes.data.data;
-          const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+          const blob = new Blob([arrayBuffer], { type: "application/pdf" });
           const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-          console.log('PDF generated successfully');
+          window.open(url, "_blank");
+          console.log("PDF generated successfully");
         } else {
-          console.warn('Print request failed:', printRes?.data?.message);
+          console.warn("Print request failed:", printRes?.data?.message);
           // Fallback to direct URL
-          const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
-          const printUrl = `${BASE_URL}/document-generation/print-permohonan-pemusnahan?link=${encodeURIComponent(link)}&createdAt=${encodeURIComponent(createdAt)}`;
-          window.open(printUrl, '_blank');
+          const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
+          const printUrl = `${BASE_URL}/document-generation/print-permohonan-pemusnahan?link=${encodeURIComponent(
+            link
+          )}&createdAt=${encodeURIComponent(createdAt)}`;
+          window.open(printUrl, "_blank");
         }
       } catch (printErr) {
-        console.warn('Print API call failed:', printErr.message);
+        console.warn("Print API call failed:", printErr.message);
         // Fallback to direct URL
-        const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
-        const printUrl = `${BASE_URL}/document-generation/print-permohonan-pemusnahan?link=${encodeURIComponent(link)}&createdAt=${encodeURIComponent(createdAt)}`;
-        window.open(printUrl, '_blank');
+        const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
+        const printUrl = `${BASE_URL}/document-generation/print-permohonan-pemusnahan?link=${encodeURIComponent(
+          link
+        )}&createdAt=${encodeURIComponent(createdAt)}`;
+        window.open(printUrl, "_blank");
       }
     } catch (err) {
-      console.error('Error generating PDF:', err);
-      showError('Gagal membuat PDF permohonan');
+      console.error("Error generating PDF:", err);
+      showError("Gagal membuat PDF permohonan");
     } finally {
-      setPermohonanLoadingStates(prev => ({ ...prev, [requestId]: false }));
+      setPermohonanLoadingStates((prev) => ({ ...prev, [requestId]: false }));
     }
   };
 
@@ -465,10 +503,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">{error}</p>
-          <button 
-            onClick={handleBack}
-            className="mt-2 text-red-600 hover:text-red-800 underline"
-          >
+          <button onClick={handleBack} className="mt-2 text-red-600 hover:text-red-800 underline">
             Kembali ke Berita Acara
           </button>
         </div>
@@ -481,10 +516,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-gray-600">Data tidak ditemukan</p>
-          <button 
-            onClick={handleBack}
-            className="mt-2 text-green-600 hover:text-green-800 underline"
-          >
+          <button onClick={handleBack} className="mt-2 text-green-600 hover:text-green-800 underline">
             Kembali ke Berita Acara
           </button>
         </div>
@@ -497,10 +529,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       {/* Breadcrumb */}
       <div className="mb-6">
         <nav className="text-sm text-gray-500 mb-2">
-          <button 
-            onClick={handleBack}
-            className="text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={handleBack} className="text-gray-500 hover:text-gray-700">
             Limbah B3
           </button>
           <span className="mx-2">›</span>
@@ -512,7 +541,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
             <p className="mt-2 text-gray-600">Detail informasi berita acara pemusnahan limbah B3.</p>
           </div>
           <div className="flex gap-3">
-            {data?.status === 'Completed' && (
+            {data?.status === "Completed" && (
               <>
                 <button
                   onClick={handleGenerateBeritaAcara}
@@ -540,9 +569,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                No. Berita Acara : {data.noBeritaAcara}
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-900">No. Berita Acara : {data.noBeritaAcara}</h2>
             </div>
             <div className="text-right">
               <span className="text-sm text-gray-500">Status :</span>
@@ -617,7 +644,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         {/* Daftar Pemusnahan Section */}
         <div className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Daftar Pemusnahan</h3>
-          
+
           <div className="flex gap-6">
             {/* Table Section */}
             <div className="flex-1">
@@ -651,27 +678,13 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {data.daftarPemusnahan.map((item, index) => (
                       <tr key={item.request_id || index} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.noPermohonan}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.bentukLimbah}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.golonganLimbah}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          {item.jenisLimbah}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.jumlahItem}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.bobotTotal}
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-900">
-                          {item.alasanPemusnahan}
-                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.noPermohonan}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.bentukLimbah}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.golonganLimbah}</td>
+                        <td className="px-4 py-4 text-sm text-gray-900">{item.jenisLimbah}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.jumlahItem}</td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.bobotTotal}</td>
+                        <td className="px-4 py-4 text-sm text-gray-900">{item.alasanPemusnahan}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -685,9 +698,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
                 <div className="space-y-3">
                   {data.daftarPemusnahan.map((item, index) => (
                     <div key={item.request_id || index} className="bg-white rounded-md border border-gray-200 p-3">
-                      <div className="text-xs font-medium text-gray-600 mb-2">
-                        {item.noPermohonan}
-                      </div>
+                      <div className="text-xs font-medium text-gray-600 mb-2">{item.noPermohonan}</div>
                       <div className="flex flex-col gap-2">
                         <button
                           onClick={() => handleDownloadExcel(item.request_id)}
@@ -695,7 +706,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
                           disabled={excelLoadingStates[item.request_id]}
                           title="Download Lampiran Excel"
                         >
-                          {excelLoadingStates[item.request_id] ? 'Loading...' : 'Download Lampiran'}
+                          {excelLoadingStates[item.request_id] ? "Loading..." : "Download Lampiran"}
                         </button>
                         <button
                           onClick={() => handleGeneratePermohonanPDF(item.request_id)}
@@ -703,7 +714,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
                           disabled={permohonanLoadingStates[item.request_id]}
                           title="Generate Form Permohonan PDF"
                         >
-                          {permohonanLoadingStates[item.request_id] ? 'Generating...' : 'Generate Form Permohonan'}
+                          {permohonanLoadingStates[item.request_id] ? "Generating..." : "Generate Form Permohonan"}
                         </button>
                       </div>
                     </div>
@@ -715,7 +726,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
         </div>
 
         {/* Sign Button - Show for InProgress status when user has permission */}
-        {data.status !== 'Completed' && canSign && (
+        {data.status !== "Completed" && canSign && (
           <div className="p-6 border-t border-gray-200 flex items-center gap-3 justify-end">
             <button
               onClick={handleSign}
@@ -726,7 +737,7 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
             </button>
           </div>
         )}
-        </div>
+      </div>
     </div>
   );
 };
