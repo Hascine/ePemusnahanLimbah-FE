@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // base: "/ePemusnahanLimbah-dev/", // Comment out for development
+  base: "/ePemusnahanLimbah-dev/", // Active for consistency with urlHelper
   server: {
     host: "0.0.0.0",
     port: 3001,
