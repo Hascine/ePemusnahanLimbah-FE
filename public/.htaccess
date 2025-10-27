@@ -1,7 +1,0 @@
-Options -MultiViews
-RewriteEngine On
-
-# Handle SPA routing - fallback to index.html for non-existing files
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . index.html [L]
