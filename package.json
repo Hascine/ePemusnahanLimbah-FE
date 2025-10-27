@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 5174",
     "build": "vite build",
-    "build:prod": "vite build --base=/ePemusnahanLimbah-dev/",
+    "build:dev": "vite build --mode development --base=/ePemusnahanLimbah-dev/",
+    "build:prod": "vite build --mode production --base=/ePemusnahanLimbah/",
     "lint": "eslint .",
     "preview": "vite preview"
   },
