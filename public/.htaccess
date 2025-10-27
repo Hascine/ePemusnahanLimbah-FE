@@ -1,15 +1,7 @@
+Options -MultiViews
 RewriteEngine On
 
-# Handle Angular and Vue.js router - fallback to index.html
-# This ensures that when someone accesses /ePemusnahanLimbah-dev/detail-berita-acara/3 directly,
-# the server will serve index.html instead of looking for those directories
-
-RewriteBase /ePemusnahanLimbah-dev/
-
-# Handle specific file requests (don't rewrite these)
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-
-# Handle all other requests - fallback to index.html for SPA routing
-RewriteRule ^(.*)$ /ePemusnahanLimbah-dev/index.html [L]
+# Handle SPA routing - fallback to index.html for non-existing files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.html [L]
