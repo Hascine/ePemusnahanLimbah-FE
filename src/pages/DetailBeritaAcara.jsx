@@ -296,12 +296,19 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       return;
     }
 
+    // DEBUG: Log signing attempt
+
     const result = await showConfirmation("Are you sure you want to sign this Berita Acara?", "Confirm Sign");
     if (!result.isConfirmed) return;
 
     try {
       setLoading(true);
+
+      // DEBUG: Log API call
+
       const response = await dataAPI.signBeritaAcara(beritaAcaraId);
+
+      // DEBUG: Log response
 
       if (response.data.success) {
         showSuccess(response.data.message || "Berita Acara signed successfully!");
@@ -316,7 +323,6 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId }) => {
       setLoading(false);
     }
   };
-
   const handleGenerateBeritaAcara = async () => {
     if (!beritaAcaraId) {
       showError("Invalid Berita Acara ID");
