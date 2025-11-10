@@ -119,7 +119,7 @@ export const getBeritaAcaraStatusDisplayName = (status, currentStepLevel = null,
         if (hint) {
           if (hint.includes('pn') || hint.includes('apj pn') || hint.includes('pn1')) return 'Waiting APJ PN Approval';
           if (hint.includes('qa') || hint.includes('apj qa')) return 'Waiting APJ QA Approval';
-          if (/department|manager|departemen|nt|wh/i.test(hint)) return 'Waiting Department Manager Approval';
+          if (/department|manager|departemen/i.test(hint)) return 'Waiting Department Manager Approval';
         }
         // Generic label for step 3 when unknown
         return 'Waiting APJ / Department Manager Approval';

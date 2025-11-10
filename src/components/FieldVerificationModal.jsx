@@ -101,7 +101,7 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
 
     // Determine if user belongs to HSE or Pemohon side
     const isHSE = userDept === "KL";
-    const isPemohon = userDept === "NT" || userDept === "WH" || userDept === permohonanDept;
+    const isPemohon = !isHSE;
 
     if (isHSE) {
       // HSE roles

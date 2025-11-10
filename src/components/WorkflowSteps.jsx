@@ -113,7 +113,7 @@ const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, g
                 const jobLevel = step.job_levelid ?? step.jobLevelId ?? step.Job_LevelID ?? null;
 
                 const isHSE = typeof apprDept === 'string' && apprDept.toUpperCase() === 'KL';
-                const isPemohon = typeof apprDept === 'string' && (apprDept.toUpperCase() === 'NT' || apprDept.toUpperCase() === 'WH');
+                const isPemohon = !isHSE;
 
                 if (Number(jobLevel) === 7) {
                     roleLabel = isHSE ? 'Pelaksana HSE' : (isPemohon ? 'Pelaksana Pemohon' : 'Pelaksana');
@@ -179,7 +179,7 @@ const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, g
                     const ccLower = cc.toLowerCase();
 
                     const isHSE = dept === 'KL';
-                    const isPemohon = dept === 'NT' || dept === 'WH';
+                    const isPemohon = !isHSE;
                     const isSupervisorLike = /supervisor|head|manager|officer/i.test(ccLower);
 
                     if (isHSE) {
