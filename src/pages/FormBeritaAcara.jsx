@@ -67,22 +67,48 @@ const FormBeritaAcara = ({ onNavigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatorAllowed, setIsCreatorAllowed] = useState(false);
   const [creatorCheckLoading, setCreatorCheckLoading] = useState(true);
+  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+
+  // Fetch available departments from API
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      setDepartmentsLoading(true);
+      try {
+        const res = await dataAPI.getExternalApprovalList(1);
+        if (res.data.success) {
+          const items = res.data.data || [];
+          // Extract unique department IDs, excluding 'KL' (HSE)
+          const deptSet = new Set();
+          items.forEach(item => {
+            const deptId = item.Appr_DeptID;
+            if (deptId && String(deptId).toUpperCase() !== 'KL') {
+              deptSet.add(String(deptId).toUpperCase());
+            }
+          });
+          const sortedDepts = Array.from(deptSet).sort();
+          setAvailableDepartments(sortedDepts);
+        }
+      } catch (err) {
+        console.error('Error fetching departments:', err);
+        setAvailableDepartments([]);
+      } finally {
+        setDepartmentsLoading(false);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
 
   // Update bagian when user changes
   useEffect(() => {
     if (user?.emp_DeptID) {
-      const deptMapping = {
-        'NT': 'NT',
-        'WH': 'WH',
-        'Information Technology': 'NT',
-        'Warehouse': 'WH'
-      };
-      
-      const mappedDept = deptMapping[user.emp_DeptID] || user.emp_DeptID;
+      // Use the department ID directly from user data
+      const deptId = String(user.emp_DeptID).toUpperCase();
       
       setForm(prev => ({
         ...prev,
-        bagian: mappedDept
+        bagian: deptId
       }));
     }
   }, [user]);
@@ -247,7 +273,7 @@ const FormBeritaAcara = ({ onNavigate }) => {
   const validateFormData = () => {
     const errors = [];
 
-    if (!form.bagian.trim()) {
+    if (!form.bagian?.trim()) {
       errors.push("Bagian harus diisi");
     }
     if (!form.tanggal) {
@@ -256,21 +282,12 @@ const FormBeritaAcara = ({ onNavigate }) => {
     if (!form.jam) {
       errors.push("Jam/Waktu harus diisi");
     }
-    if (!form.lokasiVerifikasi.trim()) {
+    if (!form.lokasiVerifikasi?.trim()) {
       errors.push("Lokasi verifikasi harus diisi");
     }
-    if (!form.pelaksanaBagian.trim()) {
-      errors.push("Pelaksana Bagian harus diisi");
-    }
-    if (!form.supervisorBagian.trim()) {
-      errors.push("Supervisor/Officer Bagian harus diisi");
-    }
-    if (!form.pelaksanaHSE.trim()) {
-      errors.push("Pelaksana HSE harus diisi");
-    }
-    if (!form.supervisorHSE.trim()) {
-      errors.push("Supervisor/Officer HSE harus diisi");
-    }
+    
+    // Note: pelaksanaBagian, supervisorBagian, pelaksanaHSE, supervisorHSE
+    // will be auto-filled from the selected disposal requests, so we don't validate them here
 
     if (daftarPemusnahan.length === 0) {
       errors.push("Silakan generate daftar pemusnahan terlebih dahulu");
@@ -322,11 +339,7 @@ const FormBeritaAcara = ({ onNavigate }) => {
         tanggal: form.tanggal, // Date field (YYYY-MM-DD local)
         waktu: buildLocalIso(), // send explicit Jakarta +07:00 ISO built from local inputs
         lokasi_verifikasi: form.lokasiVerifikasi,
-        pelaksana_bagian: form.pelaksanaBagian,
-        supervisor_bagian: form.supervisorBagian,
-        pelaksana_hse: form.pelaksanaHSE,
-        supervisor_hse: form.supervisorHSE
-        ,
+        // Remove manual input fields - these will be auto-filled from latest request's verification data
         // Include selected request IDs to process only chosen rows
         selectedRequestIds: selectedRequestIds
       };
@@ -394,10 +407,12 @@ const FormBeritaAcara = ({ onNavigate }) => {
                   name="bagian"
                   value={form.bagian}
                   onChange={handleFormChange}
+                  disabled={departmentsLoading}
                 >
-                  <option value="">Pilih Bagian</option>
-                  <option value="NT">NT</option>
-                  <option value="WH">WH</option>
+                  <option value="">{departmentsLoading ? 'Loading...' : 'Pilih Bagian'}</option>
+                  {availableDepartments.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -438,45 +453,45 @@ const FormBeritaAcara = ({ onNavigate }) => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pelaksana Bagian</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-600"
                   name="pelaksanaBagian"
                   type="text"
                   value={form.pelaksanaBagian}
-                  onChange={handleFormChange}
-                  placeholder="Pelaksana Bagian"
+                  disabled
+                  placeholder="Auto-fetch from data pemusnahan"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor/Officer Bagian</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor Bagian</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-600"
                   name="supervisorBagian"
                   type="text"
                   value={form.supervisorBagian}
-                  onChange={handleFormChange}
-                  placeholder="Supervisor/Officer Bagian"
+                  disabled
+                  placeholder="Auto-fetch from data pemusnahan"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Pelaksana HSE</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-600"
                   name="pelaksanaHSE"
                   type="text"
                   value={form.pelaksanaHSE}
-                  onChange={handleFormChange}
-                  placeholder="Pelaksana HSE"
+                  disabled
+                  placeholder="Auto-fetch from data pemusnahan"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor/Officer HSE</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Supervisor HSE</label>
                 <input
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-600"
                   name="supervisorHSE"
                   type="text"
                   value={form.supervisorHSE}
-                  onChange={handleFormChange}
-                  placeholder="Supervisor/Officer HSE"
+                  disabled
+                  placeholder="Auto-fetch from data pemusnahan"
                 />
               </div>
             </div>
