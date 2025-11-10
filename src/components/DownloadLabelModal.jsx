@@ -39,6 +39,7 @@ const PreviewCanvas = ({ drawLabel, currentContainerIndex }) => {
 
 const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false }) => {
   const [selectedSize, setSelectedSize] = useState("800px");
+  const [selectedFormat, setSelectedFormat] = useState("png");
   const [currentContainerIndex, setCurrentContainerIndex] = useState(1);
   const [labelData, setLabelData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -265,18 +266,95 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
   };
 
   const sizeOptions = [
-    { value: "400px", label: "400px", width: 400, height: 240 },
-    { value: "600px", label: "600px", width: 600, height: 360 },
-    { value: "800px", label: "800px", width: 800, height: 480 },
-    { value: "1000px", label: "1000px", width: 1000, height: 600 },
-    { value: "1200px", label: "1200px", width: 1200, height: 720 },
+    { value: "400px", label: "400px", width: 400, height: 240, physicalSize: "2.5 × 1.5 cm" },
+    { value: "600px", label: "600px", width: 600, height: 360, physicalSize: "3.8 × 2.3 cm" },
+    { value: "800px", label: "800px", width: 800, height: 480, physicalSize: "5.1 × 3.0 cm" },
+    { value: "1000px", label: "1000px", width: 1000, height: 600, physicalSize: "6.4 × 3.8 cm" },
+    { value: "1200px", label: "1200px", width: 1200, height: 720, physicalSize: "7.6 × 4.6 cm" },
   ];
+
+  // Helper function to determine waste symbols based on waste properties
+  const getWasteSymbols = (kodeLimbah, sifatLimbah, bentukLimbah) => {
+    const symbols = [];
+    const sifatLower = (sifatLimbah || "").toLowerCase();
+    const bentuk = bentukLimbah || "Unknown";
+
+    // Special case for A106d - requires checking bentuk_limbah for flame symbol type
+    if (kodeLimbah === "A106d") {
+      // A106d always has toxic symbol
+      symbols.push("/ePemusnahanLimbah-dev/hazard/beracun.png");
+
+      // A106d has "mudah menyala/mudah terbakar" - check bentuk limbah for appropriate symbol
+      if (bentuk === "Cair") {
+        // For liquid A106d, use the available liquid flammable symbol
+        symbols.push("/ePemusnahanLimbah-dev/hazard/cairan_muda_terbakar.png");
+      } else if (bentuk === "Padat") {
+        // For solid A106d, use padatan mudah menyala symbol
+        symbols.push("/ePemusnahanLimbah-dev/hazard/padatan_mudah_menyala.png");
+      }
+    } else {
+      // General rules for other waste codes - sifat_limbah already contains "cairan" or "padatan"
+
+      // 1. Check for toxic/poisonous
+      if (sifatLower.includes("beracun") || sifatLower.includes("toxic")) {
+        symbols.push("/ePemusnahanLimbah-dev/hazard/beracun.png");
+      }
+
+      // 2. Check for specific flammable types - using updated file names
+      if (sifatLower.includes("cairan mudah menyala") || sifatLower.includes("cairan mudah terbakar")) {
+        symbols.push("/ePemusnahanLimbah-dev/hazard/cairan_muda_terbakar.png");
+      }
+
+      if (sifatLower.includes("padatan mudah menyala")) {
+        symbols.push("/ePemusnahanLimbah-dev/hazard/padatan_mudah_menyala.png");
+      }
+
+      if (sifatLower.includes("padatan mudah terbakar")) {
+        // Use padatan mudah menyala as fallback since padatan_mudah_terbakar.png doesn't exist
+        symbols.push("/ePemusnahanLimbah-dev/hazard/padatan_mudah_menyala.png");
+      }
+
+      // 3. Check for explosive - now available!
+      if (sifatLower.includes("mudah meledak") || sifatLower.includes("explosive")) {
+        symbols.push("/ePemusnahanLimbah-dev/hazard/mudah_meledak.png");
+      }
+
+      // 4. Check for campuran (mixture) - file no longer available
+      if (sifatLower.includes("campuran") || sifatLower.includes("mixture")) {
+        console.log("Campuran detected but symbol file not available");
+        // No symbol added since campuran.jpg is not available
+      }
+    }
+
+    // Default fallback - if no symbols found, add general toxic
+    if (symbols.length === 0) {
+      symbols.push("/ePemusnahanLimbah-dev/hazard/beracun.png");
+    }
+
+    // Remove duplicates and limit to maximum 3 symbols
+    return [...new Set(symbols)].slice(0, 3);
+  };
 
   const drawLabel = async (canvas, ctx, scale, wadahNumber) => {
     // Scale all dimensions
     const s = scale;
     const width = 800;
     const height = 480;
+
+    // Get waste symbols and log the result for testing
+    const wasteSymbols = getWasteSymbols(
+      currentLabel.kode_limbah,
+      currentLabel.sifat_limbah,
+      labelData.request_info?.bentuk_limbah || currentLabel.bentuk_limbah
+    );
+
+    console.log("=== WASTE SYMBOLS DEBUG ===");
+    console.log("Kode Limbah:", currentLabel.kode_limbah);
+    console.log("Sifat Limbah:", currentLabel.sifat_limbah);
+    console.log("Bentuk Limbah:", labelData.request_info?.bentuk_limbah || currentLabel.bentuk_limbah);
+    console.log("Generated Symbols:", wasteSymbols);
+    console.log("Total Symbols:", wasteSymbols.length);
+    console.log("===========================");
 
     // Improve canvas rendering quality
     ctx.imageSmoothingEnabled = true;
@@ -293,13 +371,47 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
       });
     };
 
+    // Helper function to get correct path for development vs production
+    const getImagePath = (relativePath) => {
+      // Check if we're in development (localhost or dev environment)
+      const isDevelopment =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1" ||
+        window.location.hostname.includes("dev");
+
+      if (isDevelopment) {
+        // In development, use public folder path
+        return relativePath.replace("/ePemusnahanLimbah-dev", "");
+      } else {
+        // In production, use full deployed path
+        return relativePath;
+      }
+    };
+
     // Load logo image first
     let logoImg;
     try {
-      logoImg = await loadImage("/ePemusnahanLimbah-dev/logo_bnw.png");
+      logoImg = await loadImage(getImagePath("/ePemusnahanLimbah-dev/logo_bnw.png"));
     } catch (error) {
       console.warn("Failed to load logo image:", error);
       logoImg = null;
+    }
+
+    // Load waste symbols
+    const wasteSymbolImages = [];
+    if (wasteSymbols.length > 0) {
+      for (const symbolPath of wasteSymbols) {
+        try {
+          const symbolImg = await loadImage(getImagePath(symbolPath));
+          wasteSymbolImages.push({
+            img: symbolImg,
+            path: symbolPath,
+          });
+        } catch (error) {
+          console.warn(`Failed to load symbol: ${symbolPath}`, error);
+        }
+      }
+      console.log(`Loaded ${wasteSymbolImages.length} out of ${wasteSymbols.length} symbols`);
     }
 
     // Background
@@ -375,15 +487,63 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
     ctx.lineWidth = 3 * s;
     ctx.strokeRect(10 * s, 105 * s, (width - 20) * s, (height - 115) * s);
 
-    // Warning title - much larger and more dramatic
+    // Calculate layout for both warning texts and symbols - maximize symbol size
+    const yellowAreaTop = 105 * s; // Top of yellow warning area
+    const yellowAreaBottom = (height - 10) * s; // Bottom of yellow area
+    const separatorLineY = 240 * s; // Where the black line will be
+
+    // Calculate maximum available height for symbols (from top of yellow area to separator line)
+    const availableHeight = separatorLineY - yellowAreaTop - 10 * s; // 10*s padding from top
+    const symbolSize = Math.min(availableHeight, 80 * s); // Max 80px or available height, whichever smaller
+    const symbolSpacing = symbolSize + 10 * s; // Symbol width + 10px gap
+    const rightMargin = 20 * s; // Reduced right margin for more space
+    const leftMargin = 50 * s; // Left margin for texts
+
+    // Calculate symbols position - align to right side of warning area
+    const symbolsEndX = width * s - rightMargin;
+    const totalSymbolsWidth =
+      wasteSymbolImages.length > 0
+        ? wasteSymbolImages.length * symbolSize + (wasteSymbolImages.length - 1) * (symbolSpacing - symbolSize)
+        : 0;
+    const symbolsStartX = symbolsEndX - totalSymbolsWidth;
+
+    // Draw both warning texts aligned to the left (sync positioning)
     ctx.fillStyle = "#FF0000";
     ctx.font = `bold ${38 * s}px Arial`;
-    ctx.textAlign = "center";
-    ctx.fillText("PERINGATAN !", (width / 2) * s, 145 * s);
+    ctx.textAlign = "left";
+    ctx.fillText("PERINGATAN !", leftMargin, 145 * s);
 
     ctx.fillStyle = "#000000";
     ctx.font = `bold ${24 * s}px Arial`;
-    ctx.fillText("LIMBAH BERBAHAYA DAN BERACUN", (width / 2) * s, 175 * s);
+    ctx.textAlign = "left";
+    ctx.fillText("LIMBAH BERBAHAYA DAN BERACUN", leftMargin, 175 * s);
+
+    // Draw waste symbols on the right side, positioned from top of yellow area
+    if (wasteSymbolImages.length > 0) {
+      // Position symbols starting from top of yellow area with small padding
+      const symbolsY = yellowAreaTop + 10 * s; // Small padding from top of yellow area
+
+      wasteSymbolImages.forEach((symbolObj, index) => {
+        const symbolX = symbolsStartX + index * symbolSpacing;
+
+        // Save context state for symbol rendering
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        // Draw symbol with maximum size
+        ctx.drawImage(symbolObj.img, symbolX, symbolsY, symbolSize, symbolSize);
+
+        // Restore context state
+        ctx.restore();
+      });
+
+      console.log(
+        `Successfully rendered ${wasteSymbolImages.length} maximized symbols (${Math.round(
+          symbolSize / s
+        )}px) from top of yellow area`
+      );
+    }
 
     // Horizontal separator line (very thick black line)
     ctx.strokeStyle = "#000000";
@@ -424,12 +584,12 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
       }
     });
 
-    // Nomor wadah (aligned with SIFAT LIMBAH) - same font size as content
+    // Nomor wadah (positioned below all fields to avoid overlap)
     const nomorText = `NOMOR : ${currentContainerIndex}/${totalLabels}`;
     ctx.font = `bold ${18 * s}px Arial`;
     ctx.fillStyle = "#000000";
     ctx.textAlign = "right";
-    ctx.fillText(nomorText, (width - 35) * s, 450 * s);
+    ctx.fillText(nomorText, (width - 35) * s, (height - 25) * s); // Position at bottom with margin
   };
 
   const handleDownload = async (labelIndex) => {
@@ -460,7 +620,16 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
     const specificLabel = labelData.labels[labelIndex - 1];
     const wadahNumber = specificLabel?.nomor_wadah || labelIndex;
 
-    // Convert to blob and download with high quality
+    if (selectedFormat === "pdf") {
+      // Generate PDF
+      await downloadAsPDF(canvas, sizeOption, wadahNumber);
+    } else {
+      // Generate PNG (default)
+      await downloadAsPNG(canvas, sizeOption, wadahNumber);
+    }
+  };
+
+  const downloadAsPNG = async (canvas, sizeOption, wadahNumber) => {
     canvas.toBlob(
       (blob) => {
         const url = URL.createObjectURL(blob);
@@ -474,7 +643,32 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
       },
       "image/png",
       1.0
-    ); // Maximum quality
+    );
+  };
+
+  const downloadAsPDF = async (canvas, sizeOption, wadahNumber) => {
+    // Calculate physical dimensions in mm (using 400 DPI for high print quality)
+    const dpi = 400;
+    const mmPerInch = 25.4;
+    const widthMM = (sizeOption.width / dpi) * mmPerInch;
+    const heightMM = (sizeOption.height / dpi) * mmPerInch;
+
+    // Create PDF with exact dimensions
+    const { jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({
+      orientation: widthMM > heightMM ? "landscape" : "portrait",
+      unit: "mm",
+      format: [widthMM, heightMM],
+    });
+
+    // Convert canvas to image and add to PDF
+    const imgData = canvas.toDataURL("image/png", 1.0);
+    pdf.addImage(imgData, "PNG", 0, 0, widthMM, heightMM, undefined, "FAST");
+
+    // Download PDF
+    pdf.save(
+      `label-limbah-${displayLabelData.nomorPermohonan}-wadah-${wadahNumber}-${sizeOption.width}x${sizeOption.height}.pdf`
+    );
   };
 
   const handleDownloadAll = async () => {
@@ -560,12 +754,49 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
                       <div className="text-xs opacity-75">
                         {option.width} x {option.height}
                       </div>
+                      <div className="text-xs opacity-60 mt-1">{option.physicalSize}</div>
                     </button>
                   ))}
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  * File akan didownload dalam format PNG dengan kualitas tinggi
+                  * Ukuran dalam pixel, akan dikonversi ke dimensi fisik untuk PDF
                 </p>
+              </div>
+
+              {/* Format Selection */}
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Pilih Format Download:</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSelectedFormat("png")}
+                    className={`px-6 py-4 rounded-lg text-sm font-medium transition-colors border ${
+                      selectedFormat === "png"
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="text-base font-semibold">PNG</div>
+                    <div className="text-xs opacity-75 mt-1">Untuk preview & digital use</div>
+                  </button>
+                  <button
+                    onClick={() => setSelectedFormat("pdf")}
+                    className={`px-6 py-4 rounded-lg text-sm font-medium transition-colors border ${
+                      selectedFormat === "pdf"
+                        ? "bg-red-600 text-white border-red-600"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="text-base font-semibold">PDF</div>
+                    <div className="text-xs opacity-75 mt-1">Untuk print dengan ukuran akurat</div>
+                  </button>
+                </div>
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    {selectedFormat === "png"
+                      ? "📄 PNG: File gambar berkualitas tinggi, cocok untuk preview dan penggunaan digital"
+                      : "📋 PDF: Format profesional dengan dimensi fisik yang akurat, ideal untuk print label"}
+                  </p>
+                </div>
               </div>
 
               {/* Download Options */}
@@ -577,7 +808,7 @@ const DownloadLabelModal = ({ isOpen, onClose, requestId, useMockData = false })
                     onClick={handleDownloadAll}
                     className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium border border-green-600 shadow-sm"
                   >
-                    Download Semua Label ({totalLabels} file)
+                    Download Semua Label ({totalLabels} file {selectedFormat.toUpperCase()})
                   </button>
 
                   {/* Individual Downloads with professional green styling */}
