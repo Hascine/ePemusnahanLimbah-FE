@@ -729,7 +729,11 @@ const DetailAjuan = ({ onNavigate, applicationId, navigationData = {} }) => {
           showSuccess(`Verifikasi lapangan selesai dengan status: ${verificationData.status}`);
           refreshData();
         }}
-        ajuanData={{ id: applicationId || data?.id, noPermohonan: data?.noPermohonan }}
+        ajuanData={{ 
+          id: applicationId || data?.id, 
+          noPermohonan: data?.noPermohonan,
+          bagian: data?.details?.bagian || rawApiData?.bagian
+        }}
       />
       <ApproveModal
         isOpen={approveModal.isOpen}

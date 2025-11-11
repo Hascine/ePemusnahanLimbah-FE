@@ -113,12 +113,27 @@ const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, g
                 const jobLevel = step.job_levelid ?? step.jobLevelId ?? step.Job_LevelID ?? null;
 
                 const isHSE = typeof apprDept === 'string' && apprDept.toUpperCase() === 'KL';
-                const isPemohon = !isHSE;
+                // Check if this is from pemohon department
+                const isPemohon = apprDept && permohonanDept && String(apprDept).toUpperCase() === String(permohonanDept).toUpperCase();
 
                 if (Number(jobLevel) === 7) {
-                    roleLabel = isHSE ? 'Pelaksana HSE' : (isPemohon ? 'Pelaksana Pemohon' : 'Pelaksana');
+                    // Pelaksana role
+                    if (isHSE) {
+                        roleLabel = 'Pelaksana HSE';
+                    } else if (isPemohon) {
+                        roleLabel = 'Pelaksana Pemohon';
+                    } else {
+                        roleLabel = 'Pelaksana';
+                    }
                 } else if (Number(jobLevel) === 5 || Number(jobLevel) === 6) {
-                    roleLabel = isHSE ? 'Supervisor/Officer HSE' : (isPemohon ? 'Supervisor/Officer Pemohon' : 'Supervisor/Officer');
+                    // Supervisor/Officer role
+                    if (isHSE) {
+                        roleLabel = 'Supervisor/Officer HSE';
+                    } else if (isPemohon) {
+                        roleLabel = 'Supervisor/Officer Pemohon';
+                    } else {
+                        roleLabel = 'Supervisor/Officer';
+                    }
                 }
             }
 
@@ -179,12 +194,15 @@ const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, g
                     const ccLower = cc.toLowerCase();
 
                     const isHSE = dept === 'KL';
-                    const isPemohon = !isHSE;
+                    // Check if this is from pemohon department
+                    const isPemohon = permohonanDept && dept === String(permohonanDept).toUpperCase();
                     const isSupervisorLike = /supervisor|head|manager|officer/i.test(ccLower);
 
-                    if (isHSE) {
+                    if (isHSE && !isPemohon) {
+                      // Pure HSE side (not the pemohon)
                       inferredRoleLabel = isSupervisorLike ? 'Supervisor/Officer HSE' : 'Pelaksana HSE';
                     } else if (isPemohon) {
+                      // Pemohon side (could be HSE acting as pemohon)
                       inferredRoleLabel = isSupervisorLike ? 'Supervisor/Officer Pemohon' : 'Pelaksana Pemohon';
                     }
                   }

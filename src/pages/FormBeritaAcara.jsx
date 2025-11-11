@@ -78,11 +78,11 @@ const FormBeritaAcara = ({ onNavigate }) => {
         const res = await dataAPI.getExternalApprovalList(1);
         if (res.data.success) {
           const items = res.data.data || [];
-          // Extract unique department IDs, excluding 'KL' (HSE)
+          // Extract unique department IDs (including 'KL' since HSE can also be pemohon)
           const deptSet = new Set();
           items.forEach(item => {
             const deptId = item.Appr_DeptID;
-            if (deptId && String(deptId).toUpperCase() !== 'KL') {
+            if (deptId) {
               deptSet.add(String(deptId).toUpperCase());
             }
           });

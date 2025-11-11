@@ -96,14 +96,17 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
   // Helper function to determine user's eligible roles based on department and job level
   const getUserEligibleRoles = (user, permohonanDept) => {
     const eligibleRoles = [];
-    const userDept = user.Appr_DeptID || user.approver_dept_id;
+    const userDept = (user.Appr_DeptID || user.approver_dept_id || '').toString().toUpperCase();
     const jobLevel = parseInt(user.job_levelid || 0);
+    const pemohonDept = (permohonanDept || '').toString().toUpperCase();
 
-    // Determine if user belongs to HSE or Pemohon side
-    const isHSE = userDept === "KL";
-    const isPemohon = !isHSE;
+    // Determine if user belongs to HSE side (for verification purposes)
+    const isHSEDept = userDept === "KL";
+    // Determine if user is from pemohon department (must normalize both to uppercase for comparison)
+    const isPemohonDept = pemohonDept && userDept === pemohonDept;
 
-    if (isHSE) {
+    // HSE department users always have HSE roles (they verify from HSE side)
+    if (isHSEDept) {
       // HSE roles
       if (jobLevel === 7) {
         eligibleRoles.push(3); // Pelaksana HSE
@@ -113,7 +116,10 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
       }
     }
 
-    if (isPemohon) {
+    // Users from pemohon department can have Pemohon roles
+    // Important: When HSE is the pemohon (permohonanDept === 'KL'), 
+    // HSE users get BOTH HSE and Pemohon roles, so they can verify from both sides
+    if (isPemohonDept) {
       // Pemohon roles
       if (jobLevel === 7) {
         eligibleRoles.push(1); // Pelaksana Pemohon
@@ -162,12 +168,23 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
         if (externalResponse && externalResponse.data && externalResponse.data.success) {
           const externalApprovers = externalResponse.data.data || [];
           
+          // Get permohonan department from permohonan_pemusnahan_limbah table
+          const permohonanDept = ajuanData?.bagian;
+          
           availableUsers = externalApprovers
             .filter(approver => {
               const apprNo = approver.Appr_No ?? approver.appr_no;
               return String(apprNo) === '3';
             })
             .map(approver => {
+              const eligibleRoles = getUserEligibleRoles(
+                {
+                  Appr_DeptID: approver.Appr_DeptID,
+                  job_levelid: approver.job_levelid
+                },
+                permohonanDept
+              );
+              
               const userInfo = {
                 id: approver.Appr_ID,
                 username: approver.Appr_ID,
@@ -175,13 +192,7 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
                 department: approver.Appr_DeptID,
                 jobLevel: parseInt(approver.job_levelid || 0),
                 jobTitle: approver.Appr_CC,
-                eligibleRoles: getUserEligibleRoles(
-                  {
-                    Appr_DeptID: approver.Appr_DeptID,
-                    job_levelid: approver.job_levelid
-                  },
-                  ajuanData?.bagian || ajuanData?.emp_DeptID || ajuanData?.department
-                )
+                eligibleRoles: eligibleRoles
               };
               return userInfo;
             })
@@ -286,7 +297,7 @@ const FieldVerificationModal = ({ isOpen, onClose, onComplete, ajuanData, loadin
 
       // Check if user can perform selected role
       if (!canUserPerformRole(user, selectedRole)) {
-        setAuthError("User tidak memiliki akses untuk role yang dipilih");
+        setAuthError(`User tidak memiliki akses untuk role yang dipilih. Role yang dapat diakses: ${user.eligibleRoles.map(r => verificationRoles.find(vr => vr.id === r)?.title).join(', ')}`);
         setIsAuthenticating(false);
         return;
       }
