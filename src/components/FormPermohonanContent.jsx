@@ -56,11 +56,10 @@ export default function FormPermohonanContent({ requestId = null, data: initialD
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
-  // Display name helper (sesuaikan dengan API profil Anda)
-  const displayNameFor = (userId) => {
-    // TODO: Implement actual user profile fetch
-    // Untuk sementara return userId
-    return userId || "N/A";
+  // Display name helper - now uses Inisial_Name from API
+  const displayNameFor = (inisialName) => {
+    if (!inisialName) return "N/A";
+    return inisialName;
   };
 
   // Format paraf dengan delegasi

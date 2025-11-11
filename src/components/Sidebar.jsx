@@ -142,11 +142,11 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
-                <span>{user?.log_NIK?.charAt(0) || "A"}</span>
+                <span>{user?.Inisial_Name?.charAt(0) || "A"}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">
-                  {user?.log_NIK || "NIK"}
+                  {user?.Inisial_Name || "NIK"}
                 </div>
                 <div className="text-xs text-gray-500 truncate">
                   {user?.emp_DeptID || "DEPT"}
@@ -154,7 +154,7 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed }) => {
                 {/* Show delegation info if exists */}
                 {user?.delegatedTo && (
                   <div className="text-xs text-green-600 truncate mt-1">
-                    Operated by: {user.delegatedTo.log_NIK}
+                    Operated by: {user.delegatedTo.Inisial_Name}
                   </div>
                 )}
               </div>

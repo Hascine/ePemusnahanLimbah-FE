@@ -71,11 +71,10 @@ export default function FormBeritaAcaraContent({
     return timeString;
   };
 
-  // Display name helper for signatures (keeping for backward compatibility)
-  const displayNameFor = (name) => {
-    if (!name) return "N/A";
-    // Ambil kata pertama dari nama
-    return name.split(' ')[0];
+  // Display name helper - now uses Inisial_Name from API
+  const displayNameFor = (inisialName) => {
+    if (!inisialName) return "N/A";
+    return inisialName;
   };
 
   // Format paraf dengan delegasi
