@@ -1643,6 +1643,17 @@ export const dataAPI = {
       console.error('Error fetching processed requests:', error);
       return { data: { success: false, message: error.response?.data?.message || 'Failed to fetch processed requests', data: [], pagination: { total: 0, page: 1, limit: 8, totalPages: 0 } } };
     }
+  },
+
+  // Get dashboard statistics
+  getDashboardStats: async () => {
+    try {
+      const response = await api.get('/dashboard/stats');
+      return { data: response.data };
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      return { data: { success: false, message: error.response?.data?.message || 'Failed to fetch dashboard stats', data: { myRequests: 0, pendingApprovals: 0, approved: 0 } } };
+    }
   }
 };
 

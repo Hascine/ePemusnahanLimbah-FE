@@ -108,6 +108,7 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed }) => {
         },
       ],
     },
+    /*
     {
       id: "notifications",
       label: "Notifications",
@@ -130,6 +131,7 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed }) => {
       page: "settings",
       onClick: () => onNavigate("settings"),
     },
+    */
   ]
 
   return (

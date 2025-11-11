@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../contexts/AuthContext"
 import api from "../services/api"
 import { showSuccess, showError, showWarning } from "../utils/sweetAlert"
@@ -8,6 +8,33 @@ const Dashboard = ({ onNavigate }) => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [stats, setStats] = useState({
+    myRequests: 0,
+    pendingApprovals: 0,
+    approved: 0
+  })
+  const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  // Fetch dashboard statistics on component mount
+  useEffect(() => {
+    const fetchStats = async () => {
+      setIsLoadingStats(true)
+      try {
+        const result = await api.getDashboardStats()
+        if (result.data.success) {
+          setStats(result.data.data)
+        } else {
+          console.error('Failed to fetch stats:', result.data.message)
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard stats:', error)
+      } finally {
+        setIsLoadingStats(false)
+      }
+    }
+
+    fetchStats()
+  }, [])
 
   const handleFetchProfile = async () => {
     const result = await fetchProfile()
@@ -66,22 +93,56 @@ const Dashboard = ({ onNavigate }) => {
         <p className="mt-2 text-gray-600">Welcome to e-System Limbah B3</p>
       </div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Stats Cards */}
+        {/* My Requests Card - Always visible */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Applications</h3>
-          <p className="text-3xl font-bold text-green-600">24</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">My Requests</h3>
+          {isLoadingStats ? (
+            <div className="flex items-center justify-center h-12">
+              <svg className="animate-spin h-8 w-8 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (
+            <p className="text-3xl font-bold text-green-600">{stats.myRequests}</p>
+          )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Approvals</h3>
-          <p className="text-3xl font-bold text-yellow-600">8</p>
-        </div>
+        {/* Pending Approvals Card - Only visible for users with approval authority */}
+        {(user?.role && ["Manager", "HSE", "APJ", "QA"].includes(user.role) || user?.log_NIK === "PJKPO") && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Approvals</h3>
+            {isLoadingStats ? (
+              <div className="flex items-center justify-center h-12">
+                <svg className="animate-spin h-8 w-8 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold text-yellow-600">{stats.pendingApprovals}</p>
+            )}
+          </div>
+        )}
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Completed</h3>
-          <p className="text-3xl font-bold text-green-600">16</p>
-        </div>
+        {/* Approved Card - Only visible for users with approval authority */}
+        {(user?.role && ["Manager", "HSE", "APJ", "QA"].includes(user.role) || user?.log_NIK === "PJKPO") && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Approved</h3>
+            {isLoadingStats ? (
+              <div className="flex items-center justify-center h-12">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold text-blue-600">{stats.approved}</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* User Info Section */}
