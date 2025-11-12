@@ -101,7 +101,8 @@ const DetailAjuan = ({ onNavigate, applicationId, navigationData = {} }) => {
           name: apiData.requester_name || "Unknown",
           // Only set submittedAt when the request has been submitted (not Draft)
           // Prefer backend-provided `submitted_at` (set on submit). If missing, use Jakarta now
-          submittedAt: (apiData.status && apiData.status !== 'Draft') ? (apiData.submitted_at || toJakartaIsoFromLocal()) : null
+          submittedAt: (apiData.status && apiData.status !== 'Draft') ? (apiData.submitted_at || toJakartaIsoFromLocal()) : null,
+          deptId: apiData.requester_dept_id || null // Add department ID for workflow step labeling
         },
         // Workflow steps will be handled by WorkflowSteps component
         details: {
@@ -488,10 +489,11 @@ const DetailAjuan = ({ onNavigate, applicationId, navigationData = {} }) => {
             currentStatus={data.status}
             requesterName={data.pemohon.name}
             submittedAt={data.pemohon.submittedAt}
-            golonganLimbahId={data.details.golonganLimbahId}
+            golonganLimbahId={data.details.golongan_limbah_id}
             golonganLimbahName={data.details.golonganLimbah}
             currentStepLevel={data.currentStepLevel}
             isProdukPangan={data.isProdukPangan}
+            pemohonDeptId={data.pemohon.deptId}
           />
         </div>
 

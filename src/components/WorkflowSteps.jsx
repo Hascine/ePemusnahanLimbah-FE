@@ -18,7 +18,7 @@ const ClockIcon = () => (
   </div>
 );
 
-const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, golonganLimbahId, golonganLimbahName, currentStepLevel, isProdukPangan }) => {
+const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, golonganLimbahId, golonganLimbahName, currentStepLevel, isProdukPangan, pemohonDeptId }) => {
   const { user } = useAuth();
   // If the authenticated user is acting on behalf of someone else, AuthContext stores
   // the delegated target in `user.delegatedTo` (object with Nama and log_NIK fields).
@@ -30,6 +30,9 @@ const WorkflowSteps = ({ requestId, currentStatus, requesterName, submittedAt, g
   const [allWorkflows, setAllWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Store permohonan department for verification step role labeling
+  const permohonanDept = pemohonDeptId;
 
   // Use centralized Jakarta formatter so displayed wall-clock matches stored +07:00 values
   const formatTimestamp = (timestamp) => {
