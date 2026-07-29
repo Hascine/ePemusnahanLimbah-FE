@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAuth } from "../contexts/AuthContext"
 
 // SVG Icons
@@ -66,11 +66,55 @@ const XIcon = () => (
   </svg>
 )
 
+const groupKeyMap = {
+  "berita-acara": "limbah-b3",
+  "recall-berita-acara": "recall",
+  "recall-precursor-berita-acara": "recall-precursor",
+}
+
 const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed, hasPendingApproval, pendingApprovalByGroup = {} }) => {
+  const sidebarRef = useRef(null)
   const { user } = useAuth()
   const [isLimbahExpanded, setIsLimbahExpanded] = useState(true)
   const [isRecallExpanded, setIsRecallExpanded] = useState(true)
   const [isRecallPrecursorExpanded, setIsRecallPrecursorExpanded] = useState(true)
+  const [usesHoverSidebar, setUsesHoverSidebar] = useState(() => {
+    return window.matchMedia("(hover: hover) and (pointer: fine)").matches
+  })
+  const totalPendingApprovals = Object.values(pendingApprovalByGroup).reduce((sum, count) => sum + Number(count || 0), 0)
+  const hasAnyPendingApproval = hasPendingApproval || totalPendingApprovals > 0
+  const userInitial = user?.Inisial_Name?.charAt(0) || user?.Nama?.charAt(0) || "A"
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(hover: hover) and (pointer: fine)")
+    const handleMediaChange = (event) => {
+      setUsesHoverSidebar(event.matches)
+      setIsCollapsed(true)
+    }
+
+    setUsesHoverSidebar(mediaQuery.matches)
+    mediaQuery.addEventListener("change", handleMediaChange)
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleMediaChange)
+    }
+  }, [setIsCollapsed])
+
+  useEffect(() => {
+    if (usesHoverSidebar || isCollapsed) return
+
+    const handleOutsidePointerDown = (event) => {
+      if (!sidebarRef.current?.contains(event.target)) {
+        setIsCollapsed(true)
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown)
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown)
+    }
+  }, [isCollapsed, setIsCollapsed, usesHoverSidebar])
 
   const menuItems = [
     {
@@ -179,129 +223,175 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed, hasPend
     */
   ]
 
+  const isItemActive = (item) => {
+    if (currentPage === item.page) return true
+    return item.submenu?.some((subItem) => subItem.page === currentPage)
+  }
+
+  const getItemPendingCount = (item) => {
+    if (!item.submenu) return 0
+    return item.submenu.reduce((sum, subItem) => {
+      const groupKey = groupKeyMap[subItem.id]
+      return sum + Number(groupKey ? pendingApprovalByGroup[groupKey] || 0 : 0)
+    }, 0)
+  }
+
   return (
-    <div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg border-r border-gray-200 flex flex-col h-screen fixed left-0 top-16 transition-all duration-300 z-40`}>
+    <aside
+      ref={sidebarRef}
+      onMouseEnter={usesHoverSidebar ? () => setIsCollapsed(false) : undefined}
+      onMouseLeave={usesHoverSidebar ? () => setIsCollapsed(true) : undefined}
+      className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white/95 backdrop-blur border-r border-gray-200/80 flex flex-col h-[calc(100vh-4rem)] fixed left-0 top-16 transition-all duration-300 z-40 shadow-[8px_0_24px_rgba(15,23,42,0.06)]`}
+    >
       {/* User Profile - Hidden when collapsed */}
       {!isCollapsed && (
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold">
-                <span>{user?.Inisial_Name?.charAt(0) || "A"}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {user?.Inisial_Name || "NIK"}
+        <div className="p-3 border-b border-gray-100">
+          <div className="rounded-lg bg-gradient-to-br from-green-50 via-white to-emerald-50 border border-green-100/80 p-3 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="relative w-11 h-11 bg-green-700 rounded-lg flex items-center justify-center text-white font-semibold shadow-sm">
+                  <span>{userInitial}</span>
+                  <span className="absolute -right-1 -bottom-1 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span>
                 </div>
-                <div className="text-xs text-gray-500 truncate">
-                  {user?.emp_DeptID || "DEPT"}
-                </div>
-                {/* Show delegation info if exists */}
-                {user?.delegatedTo && (
-                  <div className="text-xs text-green-600 truncate mt-1">
-                    Operated by: {user.delegatedTo.Inisial_Name}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 truncate">
+                    {user?.Inisial_Name || "NIK"}
                   </div>
-                )}
+                  <div className="text-xs text-gray-500 truncate mt-0.5">
+                    {user?.emp_DeptID || "DEPT"}
+                  </div>
+                  {/* Show delegation info if exists */}
+                  {user?.delegatedTo && (
+                    <div className="text-xs text-green-700 truncate mt-1.5 font-medium">
+                      Operated by: {user.delegatedTo.Inisial_Name}
+                    </div>
+                  )}
+                </div>
               </div>
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-md transition-colors"
+                title="Collapse sidebar"
+              >
+                <XIcon />
+              </button>
             </div>
-            <button
-              onClick={() => setIsCollapsed(true)}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <XIcon />
-            </button>
           </div>
         </div>
       )}
 
       {/* Toggle button when collapsed */}
       {isCollapsed && (
-        <div className="p-2 border-b border-gray-200">
+        <div className="p-2 border-b border-gray-100">
           <button
             onClick={() => setIsCollapsed(false)}
-            className="w-full p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+            className="relative w-full p-2.5 text-gray-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+            title="Expand sidebar"
           >
             <MenuIcon />
+            {hasAnyPendingApproval && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+            )}
           </button>
         </div>
       )}
 
       {/* Navigation Menu */}
-      <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="space-y-1">
-          {menuItems.map((item) => (
-            <li key={item.id}>
-              <div
-                className={`flex items-center ${isCollapsed ? 'justify-center p-2' : 'justify-between p-2'} rounded-md cursor-pointer transition-colors ${
-                  currentPage === item.page 
-                    ? "bg-green-100 text-green-700" 
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-                onClick={item.hasSubmenu ? item.onToggle : item.onClick}
-                title={isCollapsed ? item.label : undefined}
-              >
-                {isCollapsed ? (
-                  // Collapsed view - only icon
-                  <span>{item.icon}</span>
-                ) : (
-                  // Expanded view - full menu
-                  <>
-                    <div className="flex items-center space-x-3">
-                      <span>{item.icon}</span>
-                      <span className="text-sm font-medium">{item.label}</span>
-                      {item.badge && (
-                        <span className="px-2 py-1 text-xs bg-red-500 text-white rounded-full">
-                          {item.badge}
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3">
+        {!isCollapsed && (
+          <div className="px-2 pb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+            Navigation
+          </div>
+        )}
+        <ul className="space-y-1.5">
+          {menuItems.map((item) => {
+            const active = isItemActive(item)
+            const pendingCount = getItemPendingCount(item)
+
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className={`group relative w-full flex items-center ${isCollapsed ? 'justify-center h-11 px-2' : 'justify-between min-h-11 px-2.5 py-2'} rounded-lg cursor-pointer transition-all duration-200 ${
+                    active
+                      ? "bg-green-700 text-white shadow-sm"
+                      : "text-gray-700 hover:bg-green-50 hover:text-green-800"
+                  }`}
+                  onClick={item.hasSubmenu ? item.onToggle : item.onClick}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  {isCollapsed ? (
+                    // Collapsed view - only icon
+                    <>
+                      <span className={`${active ? "text-white" : "text-gray-500 group-hover:text-green-700"}`}>{item.icon}</span>
+                      {pendingCount > 0 && (
+                        <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] leading-4 rounded-full ring-2 ring-white">
+                          {pendingCount > 9 ? "9+" : pendingCount}
                         </span>
                       )}
-                    </div>
-                    {item.hasSubmenu && (
-                      <span className="text-gray-400">
-                        {item.isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
+                    </>
+                  ) : (
+                    // Expanded view - full menu
+                    <>
+                      <div className="flex items-center min-w-0 gap-3">
+                        <span className={`shrink-0 ${active ? "text-white" : "text-gray-500 group-hover:text-green-700"}`}>
+                          {item.icon}
+                        </span>
+                        <span className="text-sm font-semibold truncate">{item.label}</span>
+                        {pendingCount > 0 && (
+                          <span className={`${active ? "bg-white/20 text-white" : "bg-red-50 text-red-600"} shrink-0 min-w-5 h-5 px-1.5 text-xs leading-5 rounded-full text-center font-semibold`}>
+                            {pendingCount > 99 ? "99+" : pendingCount}
+                          </span>
+                        )}
+                      </div>
+                      {item.hasSubmenu && (
+                        <span className={`${active ? "text-white/80" : "text-gray-400 group-hover:text-green-700"} transition-colors`}>
+                          {item.isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </button>
 
-              {/* Submenu - only show when expanded */}
-              {!isCollapsed && item.hasSubmenu && item.isExpanded && (
-                <ul className="mt-1 ml-6 space-y-1">
-                  {item.submenu.map((subItem) => {
-                    // Map submenu IDs to group keys for badge display
-                    const groupKeyMap = {
-                      'berita-acara': 'limbah-b3',
-                      'recall-berita-acara': 'recall',
-                      'recall-precursor-berita-acara': 'recall-precursor'
-                    }
-                    const groupKey = groupKeyMap[subItem.id]
-                    const hasPending = groupKey && pendingApprovalByGroup[groupKey] > 0
-                    
-                    return (
-                      <li key={subItem.id}>
-                        <div
-                          className={`p-2 rounded-md cursor-pointer text-sm transition-colors flex items-center justify-between ${
-                            currentPage === subItem.page
-                              ? "bg-green-50 text-green-600"
-                              : "text-gray-600 hover:bg-gray-50"
-                          }`}
-                          onClick={subItem.onClick}
-                        >
-                          <span>{subItem.label}</span>
-                          {hasPending && (
-                            <span className="w-2 h-2 bg-red-500 rounded-full" title="Pending approval"></span>
-                          )}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </li>
-          ))}
+                {/* Submenu - only show when expanded */}
+                {!isCollapsed && item.hasSubmenu && item.isExpanded && (
+                  <ul className="relative mt-1.5 ml-5 pl-3 space-y-1 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-px before:bg-gray-200">
+                    {item.submenu.map((subItem) => {
+                      // Map submenu IDs to group keys for badge display
+                      const groupKey = groupKeyMap[subItem.id]
+                      const pendingCount = Number(groupKey ? pendingApprovalByGroup[groupKey] || 0 : 0)
+                      const hasPending = pendingCount > 0
+                      const activeSubItem = currentPage === subItem.page
+
+                      return (
+                        <li key={subItem.id}>
+                          <button
+                            type="button"
+                            className={`relative w-full min-h-9 px-2.5 py-1.5 rounded-lg cursor-pointer text-sm transition-all flex items-center justify-between gap-2 text-left ${
+                              activeSubItem
+                                ? "bg-green-50 text-green-700 font-semibold"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }`}
+                            onClick={subItem.onClick}
+                          >
+                            <span className="truncate">{subItem.label}</span>
+                            {hasPending && (
+                              <span className="shrink-0 min-w-5 h-5 px-1.5 bg-red-50 text-red-600 text-xs leading-5 rounded-full text-center font-semibold" title="Pending approval">
+                                {pendingCount > 99 ? "99+" : pendingCount}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </li>
+            )
+          })}
         </ul>
       </nav>
-    </div>
+    </aside>
   )
 }
 

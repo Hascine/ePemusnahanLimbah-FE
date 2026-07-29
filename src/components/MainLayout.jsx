@@ -72,7 +72,7 @@ const MainLayout = () => {
   const initial = getCurrentPageFromURL()
   const [currentPage, setCurrentPage] = useState(initial.page)
   const [routePage, setRoutePage] = useState(initial.page)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
   const [pageData, setPageData] = useState(initial.id ? { id: initial.id } : null) // Store data passed between pages
   const [hasPendingApproval, setHasPendingApproval] = useState(false)
   const [pendingApprovalByGroup, setPendingApprovalByGroup] = useState({
