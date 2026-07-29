@@ -67,24 +67,10 @@ const XIcon = () => (
 )
 
 const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed, hasPendingApproval, pendingApprovalByGroup = {} }) => {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [isLimbahExpanded, setIsLimbahExpanded] = useState(true)
   const [isRecallExpanded, setIsRecallExpanded] = useState(true)
   const [isRecallPrecursorExpanded, setIsRecallPrecursorExpanded] = useState(true)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true)
-      await logout()
-      onNavigate("login")
-    } catch (error) {
-      console.error("Logout failed:", error)
-      onNavigate("login")
-    } finally {
-      setIsLoggingOut(false)
-    }
-  }
 
   const menuItems = [
     {
@@ -314,20 +300,6 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed, hasPend
             </li>
           ))}
         </ul>
-        
-        {/* Logout Button */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className={`w-full p-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors ${
-              isCollapsed ? "flex items-center justify-center" : ""
-            }`}
-            title={isCollapsed ? "Logout" : undefined}
-          >
-            {isCollapsed ? "⏻" : (isLoggingOut ? "Logging out..." : "Logout")}
-          </button>
-        </div>
       </nav>
     </div>
   )
