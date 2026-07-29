@@ -236,9 +236,18 @@ const Sidebar = ({ currentPage, onNavigate, isCollapsed, setIsCollapsed, hasPend
     }, 0)
   }
 
+  const handleSidebarPointerDownCapture = (event) => {
+    if (!usesHoverSidebar && isCollapsed) {
+      event.preventDefault()
+      event.stopPropagation()
+      setIsCollapsed(false)
+    }
+  }
+
   return (
     <aside
       ref={sidebarRef}
+      onPointerDownCapture={handleSidebarPointerDownCapture}
       onMouseEnter={usesHoverSidebar ? () => setIsCollapsed(false) : undefined}
       onMouseLeave={usesHoverSidebar ? () => setIsCollapsed(true) : undefined}
       className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white/95 backdrop-blur border-r border-gray-200/80 flex flex-col h-[calc(100vh-4rem)] fixed left-0 top-16 transition-all duration-300 z-40 shadow-[8px_0_24px_rgba(15,23,42,0.06)]`}
