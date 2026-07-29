@@ -8,6 +8,7 @@ import { getBeritaAcaraStatusDisplayName } from "../constants/referenceData";
 import { formatDateID } from "../utils/time";
 import { showInfo } from "../utils/sweetAlert";
 import { hasBeritaAcaraApprovalAuthority } from "../constants/accessRights";
+import DetailBeritaAcara from "../pages/DetailBeritaAcara";
 
 // Simple CSS icons as components
 const SearchIcon = () => (
@@ -62,6 +63,8 @@ const BeritaAcaraDataTable = ({ onNavigate, onPendingApprovalChange, initialTab 
   const [error, setError] = useState(null);
   const [openPermohonanIdx, setOpenPermohonanIdx] = useState(null);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [detailModal, setDetailModal] = useState({ isOpen: false, itemId: null });
+  const [refreshKey, setRefreshKey] = useState(0);
   const itemsPerPage = 8;
   const { user } = useAuth();
   const { getStatusStyle } = useConfigContext();
@@ -155,7 +158,7 @@ const BeritaAcaraDataTable = ({ onNavigate, onPendingApprovalChange, initialTab 
 
     fetchBeritaAcara();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, searchTerm, selectedColumn, groupFilter, activeTab]);
+  }, [currentPage, searchTerm, selectedColumn, groupFilter, activeTab, refreshKey]);
 
   // Define column mappings based on backend BeritaAcara model
   const columnOptions = [
@@ -183,18 +186,20 @@ const BeritaAcaraDataTable = ({ onNavigate, onPendingApprovalChange, initialTab 
   };
 
   const handleView = async (id) => {
-    if (onNavigate) {
-      // Build navigation context for Back button
-      const urlParams = new URLSearchParams(window.location.search);
-      const fromContext = {
-        page: 'berita-acara',
-        pageAlias: groupFilter ? `berita-acara-${groupFilter === 'limbah-b3' ? 'b3' : groupFilter === 'recall-precursor' ? 'recall-precursor-oot' : groupFilter}` : 'berita-acara-b3',
-        group: groupFilter,
-        pageNumber: currentPage
-      };
-      onNavigate('detail-berita-acara', { id: id, from: fromContext });
-    } else {
-      showInfo("View berita acara functionality will be implemented here");
+    if (!id) {
+      showInfo("Data berita acara tidak ditemukan");
+      return;
+    }
+
+    setDetailModal({ isOpen: true, itemId: id });
+  };
+
+  const detailNavigationContext = {
+    from: {
+      page: 'berita-acara',
+      pageAlias: groupFilter ? `berita-acara-${groupFilter === 'limbah-b3' ? 'b3' : groupFilter === 'recall-precursor' ? 'recall-precursor-oot' : groupFilter}` : 'berita-acara-b3',
+      group: groupFilter,
+      pageNumber: currentPage
     }
   };
 
@@ -469,6 +474,17 @@ const BeritaAcaraDataTable = ({ onNavigate, onPendingApprovalChange, initialTab 
           </div>
         </div>
       </div>
+
+      {detailModal.isOpen && (
+        <DetailBeritaAcara
+          asModal={true}
+          onClose={() => setDetailModal({ isOpen: false, itemId: null })}
+          beritaAcaraId={detailModal.itemId}
+          navigationData={detailNavigationContext}
+          onNavigate={onNavigate}
+          onAfterAction={() => setRefreshKey(prev => prev + 1)}
+        />
+      )}
     </div>
   );
 };

@@ -20,7 +20,7 @@ import { showApiError } from "../utils/errorUi";
 
 // Use centralized Jakarta formatters so displayed timestamps match stored Jakarta wall-clock
 
-const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) => {
+const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {}, asModal = false, onClose, onAfterAction }) => {
   const { user } = useAuth();
   const { getStatusStyle } = useConfigContext();
   const [data, setData] = useState(null);
@@ -431,6 +431,11 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
   }, [data?.requests]);
 
   const handleBack = () => {
+    if (asModal && onClose) {
+      onClose();
+      return;
+    }
+
     if (onNavigate) {
       // Use navigation context if available, otherwise fallback to default
       const fromContext = navigationData?.from;
@@ -468,6 +473,11 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
 
       if (response.data.success) {
         showSuccess(response.data.message || "Berita Acara signed successfully!");
+        if (asModal) {
+          if (onAfterAction) onAfterAction();
+          if (onClose) onClose();
+          return;
+        }
         window.location.reload();
       } else {
         await showApiError(response.data, "Failed to sign berita acara");
@@ -633,9 +643,38 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
     }
   };
 
-  if (loading) {
+  const renderFrame = (content) => {
+    if (!asModal) return content;
+
     return (
-      <div className="p-6">
+      <div
+        className="fixed inset-0 z-50 bg-gray-900/45 backdrop-blur-sm p-3 md:p-6 flex items-start justify-center"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            handleBack();
+          }
+        }}
+      >
+        <div
+          className="relative w-full max-w-[95vw] max-h-[calc(100vh-1.5rem)] md:max-h-[calc(100vh-3rem)] overflow-y-auto bg-gray-100 rounded-xl shadow-2xl"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <button
+            onClick={handleBack}
+            className="absolute right-4 top-4 z-10 w-9 h-9 inline-flex items-center justify-center rounded-lg bg-white text-gray-500 border border-gray-200 shadow-sm hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            title="Tutup detail"
+          >
+            ×
+          </button>
+          {content}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return renderFrame(
+      <div className="p-6 pr-14">
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -648,8 +687,8 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
 
   // Show loading screen when generating berita acara PDF
   if (beritaAcaraLoading) {
-    return (
-      <div className="p-6">
+    return renderFrame(
+      <div className="p-6 pr-14">
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -661,26 +700,30 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
   }
 
   if (error) {
-    return (
-      <div className="p-6">
+    return renderFrame(
+      <div className="p-6 pr-14">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800">{error}</p>
-          <button onClick={handleBack} className="mt-2 text-red-600 hover:text-red-800 underline">
-            Kembali ke Berita Acara
-          </button>
+          {!asModal && (
+            <button onClick={handleBack} className="mt-2 text-red-600 hover:text-red-800 underline">
+              Kembali ke Berita Acara
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
   if (!data) {
-    return (
-      <div className="p-6">
+    return renderFrame(
+      <div className="p-6 pr-14">
         <div className="text-center py-12">
           <p className="text-gray-600">Data tidak ditemukan</p>
-          <button onClick={handleBack} className="mt-2 text-green-600 hover:text-green-800 underline">
-            Kembali ke Berita Acara
-          </button>
+          {!asModal && (
+            <button onClick={handleBack} className="mt-2 text-green-600 hover:text-green-800 underline">
+              Kembali ke Berita Acara
+            </button>
+          )}
         </div>
       </div>
     );
@@ -693,14 +736,18 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
         }${verificationTimeRange.end ? formatTimeID(verificationTimeRange.end) : ''}`.trim()
       : data.detailBAP.jamWaktu;
 
-  return (
-    <div className="p-6">
+  return renderFrame(
+    <div className={`${asModal ? "p-4 md:p-6 pr-14" : "p-6"}`}>
       {/* Breadcrumb */}
       <div className="mb-6">
         <nav className="text-sm text-gray-500 mb-2">
-          <button onClick={handleBack} className="text-gray-500 hover:text-gray-700">
-            {getBreadcrumb()}
-          </button>
+          {asModal ? (
+            <span>{getBreadcrumb()}</span>
+          ) : (
+            <button onClick={handleBack} className="text-gray-500 hover:text-gray-700">
+              {getBreadcrumb()}
+            </button>
+          )}
           <span className="mx-2">›</span>
           <span className="text-gray-900">Detail Berita Acara Pemusnahan</span>
         </nav>
@@ -722,12 +769,14 @@ const DetailBeritaAcara = ({ onNavigate, beritaAcaraId, navigationData = {} }) =
               </>
             )}
 
-            <button
-              onClick={handleBack}
-              className="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-            >
-              Kembali
-            </button>
+            {!asModal && (
+              <button
+                onClick={handleBack}
+                className="px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              >
+                Kembali
+              </button>
+            )}
           </div>
         </div>
       </div>
