@@ -1,17 +1,17 @@
 // Token management utilities
 export const TokenManager = {
-  // Get token dari session atau localStorage
+  // Get token dari sessionStorage
   getToken: () => {
-    return sessionStorage.getItem('access_token') || localStorage.getItem('token');
+    return sessionStorage.getItem('access_token');
   },
 
-  // Set token ke session dan localStorage
+  // Set token ke sessionStorage
   setToken: (token) => {
     sessionStorage.setItem('access_token', token);
-    localStorage.setItem('token', token); // Backup ke localStorage
+    localStorage.removeItem('token');
   },
 
-  // Clear token dari semua storage
+  // Clear token dari auth storage
   clearToken: () => {
     sessionStorage.removeItem('access_token');
     localStorage.removeItem('token');
@@ -23,20 +23,20 @@ export const TokenManager = {
     return !!token;
   },
 
-  // Get user data dari session atau localStorage
+  // Get user data dari sessionStorage
   getUser: () => {
-    const userData = sessionStorage.getItem('user') || localStorage.getItem('user');
+    const userData = sessionStorage.getItem('user');
     return userData ? JSON.parse(userData) : null;
   },
 
-  // Set user data ke session dan localStorage
+  // Set user data ke sessionStorage
   setUser: (userData) => {
     const userString = JSON.stringify(userData);
     sessionStorage.setItem('user', userString);
-    localStorage.setItem('user', userString);
+    localStorage.removeItem('user');
   },
 
-  // Clear user data dari semua storage
+  // Clear user data dari auth storage
   clearUser: () => {
     sessionStorage.removeItem('user');
     localStorage.removeItem('user');

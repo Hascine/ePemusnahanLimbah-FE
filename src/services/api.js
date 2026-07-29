@@ -11,10 +11,9 @@ const api = axios.create({
   },
 });
 
-// Helper function to get token from session or localStorage
+// Helper function to get token from current session
 const getAuthToken = () => {
-  // Priority: sessionStorage first (access_token), then localStorage (token) as fallback
-  return sessionStorage.getItem('access_token') || localStorage.getItem('token');
+  return sessionStorage.getItem('access_token');
 };
 
 const createApiError = (error, fallbackMessage) => ({

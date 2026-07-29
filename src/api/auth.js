@@ -1,10 +1,9 @@
 // API base URL
 const API_BASE_URL = 'http://192.168.1.38/api/lms-dev/v1';
 
-// Helper function to get token from session or localStorage (same as main api.js)
+// Helper function to get token from current session
 const getAuthToken = () => {
-  // Priority: sessionStorage first (access_token), then localStorage (token) as fallback
-  return sessionStorage.getItem('access_token') || localStorage.getItem('token');
+  return sessionStorage.getItem('access_token');
 };
 
 // Create a helper function for making API requests

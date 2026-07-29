@@ -6,10 +6,16 @@ import { HSE_MANAGER_JABATAN } from "../constants/accessRights";
 const AuthContext = createContext(null);
 const HSE_MANAGER_JABATAN_NORMALIZED = HSE_MANAGER_JABATAN.toLowerCase();
 
+const clearPersistentAuthStorage = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.removeItem("delegatedTo");
+};
+
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null); // Changed from boolean to null for loading state
   const [user, setUser] = useState(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = sessionStorage.getItem("user");
     return storedUser ? JSON.parse(storedUser) : null;
   });
   const [error, setError] = useState(null);
@@ -17,6 +23,10 @@ export const AuthProvider = ({ children }) => {
   // Function to fetch user profile when only token is available
   const fetchProfileFromToken = useCallback(async (token) => {
     try {
+      if (token) {
+        sessionStorage.setItem("access_token", token);
+      }
+
       const result = await dataAPI.getCurrentProfile();
       if (result.data.success) {
         // Determine role based on job title/level
@@ -55,12 +65,13 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         setIsAuthenticated(true);
         sessionStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("user", JSON.stringify(userData));
 
         if (result.data.data.delegatedTo) {
           sessionStorage.setItem("delegatedTo", JSON.stringify(result.data.data.delegatedTo));
-          localStorage.setItem("delegatedTo", JSON.stringify(result.data.data.delegatedTo));
+        } else {
+          sessionStorage.removeItem("delegatedTo");
         }
+        clearPersistentAuthStorage();
 
         return { success: true, data: result.data.data };
       } else {
@@ -78,30 +89,29 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Effect to initialize auth state from sessionStorage and localStorage
+  // Effect to initialize auth state from sessionStorage
   useEffect(() => {
     // Check for token from query parameters first
     const urlParams = new URLSearchParams(window.location.search);
     const authFromQuery = urlParams.get("auth");
 
-    // Priority: query parameter, sessionStorage, localStorage
-    let token = authFromQuery || sessionStorage.getItem("access_token") || localStorage.getItem("token");
-    let storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    // Priority: query parameter, then sessionStorage for this tab/session only
+    let token = authFromQuery || sessionStorage.getItem("access_token");
+    let storedUser = sessionStorage.getItem("user");
 
-    // If token comes from query parameter, save it to storage
+    // If token comes from query parameter, treat it as the current session source of truth
     if (authFromQuery) {
       sessionStorage.setItem("access_token", authFromQuery);
-      localStorage.setItem("token", authFromQuery);
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("delegatedTo");
+      clearPersistentAuthStorage();
       // Clear query parameter from URL
       const newUrl = new URL(window.location);
       newUrl.searchParams.delete("auth");
       window.history.replaceState({}, "", newUrl.toString());
 
-      // If we have token from query but no user data, fetch user profile
-      if (!storedUser && authFromQuery) {
-        fetchProfileFromToken(authFromQuery);
-        return;
-      }
+      fetchProfileFromToken(authFromQuery);
+      return;
     }
 
     if (token && storedUser) {
@@ -137,7 +147,6 @@ export const AuthProvider = ({ children }) => {
 
         userData.role = userRole;
         sessionStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("user", JSON.stringify(userData));
       }
       setIsAuthenticated(true);
       setUser(userData);
@@ -213,10 +222,9 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // Simpan access token ke sessionStorage (lebih aman untuk session)
+        // Simpan access token hanya ke sessionStorage agar auth mengikuti session tab
         sessionStorage.setItem("access_token", data.access_token);
-        // Juga simpan ke localStorage sebagai backup
-        localStorage.setItem("token", data.access_token);
+        clearPersistentAuthStorage();
 
         // Store complete user data including delegatedTo info
         // Determine role based on job title/level
@@ -252,13 +260,13 @@ export const AuthProvider = ({ children }) => {
           delegatedTo: data.delegatedTo,
         };
 
-        // Simpan user data ke sessionStorage dan localStorage
+        // Simpan user data hanya ke sessionStorage
         sessionStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("user", JSON.stringify(userData));
 
         if (data.delegatedTo) {
           sessionStorage.setItem("delegatedTo", JSON.stringify(data.delegatedTo));
-          localStorage.setItem("delegatedTo", JSON.stringify(data.delegatedTo));
+        } else {
+          sessionStorage.removeItem("delegatedTo");
         }
 
         setIsAuthenticated(true);
@@ -294,7 +302,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const fetchProfile = useCallback(async () => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("access_token");
     if (!token) {
       return { success: false, error: "No token found" };
     }
@@ -335,10 +343,13 @@ export const AuthProvider = ({ children }) => {
           delegatedTo: result.data.data.delegatedTo,
         };
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
+        sessionStorage.setItem("user", JSON.stringify(userData));
         if (result.data.data.delegatedTo) {
-          localStorage.setItem("delegatedTo", JSON.stringify(result.data.data.delegatedTo));
+          sessionStorage.setItem("delegatedTo", JSON.stringify(result.data.data.delegatedTo));
+        } else {
+          sessionStorage.removeItem("delegatedTo");
         }
+        clearPersistentAuthStorage();
         return { success: true, data: result.data.data };
       } else {
         setError(result.data.message);
@@ -352,13 +363,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(() => {
-    // Hapus dari sessionStorage dan localStorage
+    // Hapus auth session dan sisa persistent auth lama
     sessionStorage.removeItem("access_token");
     sessionStorage.removeItem("user");
     sessionStorage.removeItem("delegatedTo");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("delegatedTo");
+    clearPersistentAuthStorage();
 
     setIsAuthenticated(false);
     setUser(null);
@@ -375,23 +384,22 @@ export const AuthProvider = ({ children }) => {
     const urlParams = new URLSearchParams(window.location.search);
     const authFromQuery = urlParams.get("auth");
 
-    let token = authFromQuery || sessionStorage.getItem("access_token") || localStorage.getItem("token");
-    let storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    let token = authFromQuery || sessionStorage.getItem("access_token");
+    let storedUser = sessionStorage.getItem("user");
 
-    // If token comes from query parameter, save it to storage
+    // If token comes from query parameter, treat it as the current session source of truth
     if (authFromQuery) {
       sessionStorage.setItem("access_token", authFromQuery);
-      localStorage.setItem("token", authFromQuery);
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("delegatedTo");
+      clearPersistentAuthStorage();
       // Clear query parameter from URL
       const newUrl = new URL(window.location);
       newUrl.searchParams.delete("auth");
       window.history.replaceState({}, "", newUrl.toString());
 
-      // If we have token from query but no user data, fetch user profile
-      if (!storedUser && authFromQuery) {
-        fetchProfileFromToken(authFromQuery);
-        return;
-      }
+      fetchProfileFromToken(authFromQuery);
+      return;
     }
 
     if (token && storedUser) {
@@ -426,7 +434,6 @@ export const AuthProvider = ({ children }) => {
 
         userData.role = userRole;
         sessionStorage.setItem("user", JSON.stringify(userData));
-        localStorage.setItem("user", JSON.stringify(userData));
       }
       setIsAuthenticated(true);
       setUser(userData);
