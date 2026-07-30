@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { dataAPI } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
-import { toJakartaIsoFromLocal, formatDateID, formatDateTimeID, formatTimeID, formatTimeHHMM } from "../utils/time";
+import { toJakartaIsoFromLocal } from "../utils/time";
 import { showSuccess, showError, showWarning, showInfo, showConfirmation } from "../utils/sweetAlert";
 import { showApiError } from "../utils/errorUi";
 import { isPemohon as checkIsPemohon } from "../constants/accessRights";
+import { getBapPageAlias, loadBapFormContext, normalizeBapGroup } from "../utils/beritaAcaraContext";
 
 // Simple CSS icons as components
 const ChevronDownIcon = () => (
@@ -13,28 +14,14 @@ const ChevronDownIcon = () => (
   </div>
 );
 
-function formatDateToDDMMYYYY(dateStr) {
-  // Use centralized Jakarta formatter; if input is an ISO or date-like, format as DD/MM/YYYY
-  if (!dateStr) return '';
-  const f = formatDateID(dateStr);
-  return f || String(dateStr);
-}
-
-function formatTime24Hour(timeStr) {
-  if (!timeStr) return '';
-  // If already an HH:MM:SS string, normalize; otherwise try to parse via Jakarta util
-  if (timeStr.includes(':')) {
-    const [h,m,s] = timeStr.split(':');
-    return `${(h||'00').padStart(2,'0')}:${(m||'00').padStart(2,'0')}:${(s||'00').padStart(2,'0')}`;
-  }
-  // Fallback: try formatting as Jakarta time
-  // formatTimeHHMM returns HH:MM; prefer formatTimeID which returns HH:MM:SS
-  const f = formatTimeID(timeStr);
-  return f || String(timeStr);
-}
-
 const FormBeritaAcara = ({ onNavigate, group }) => {
   const { user } = useAuth();
+  const savedContext = loadBapFormContext();
+  const effectiveGroup = normalizeBapGroup(group || savedContext?.group);
+  const beritaAcaraPageContext = {
+    group: effectiveGroup,
+    pageAlias: getBapPageAlias(effectiveGroup),
+  };
 
   const getLocalDateISO = () => {
     // Build Jakarta ISO from local now and take YYYY-MM-DD portion so date inputs match Jakarta date
@@ -68,7 +55,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatorAllowed, setIsCreatorAllowed] = useState(false);
-  const [creatorCheckLoading, setCreatorCheckLoading] = useState(true);
+  const [, setCreatorCheckLoading] = useState(true);
   // allDataForDate: all available requests fetched for the current date selection (no bagian filter)
   // Used to derive available departments and to generate daftar by client-side filtering
   const [allDataForDate, setAllDataForDate] = useState([]);
@@ -95,11 +82,11 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
             (Number(e.Appr_No) === 1 || Number(e.Appr_No) === 2) &&
             String((e.Appr_DeptID || '').toUpperCase()) === 'KL'
           );
-          const isQA = group === 'recall' && myEntries.some(e =>
+          const isQA = effectiveGroup === 'recall' && myEntries.some(e =>
             Number(e.Appr_No) === 3 &&
             String((e.Appr_DeptID || '').toUpperCase()) === 'QA'
           );
-          const isPN1 = group === 'recall-precursor' && myEntries.some(e =>
+          const isPN1 = effectiveGroup === 'recall-precursor' && myEntries.some(e =>
             Number(e.Appr_No) === 3 &&
             String((e.Appr_DeptID || '').toUpperCase()) === 'PN1'
           );
@@ -118,7 +105,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
 
     checkCreator();
     return () => { mounted = false; };
-  }, [user, group]);
+  }, [user, effectiveGroup]);
 
   // When date selection changes, fetch all available requests for that date (no bagian filter)
   // and derive which departments have data. Reset bagian selection and daftar.
@@ -127,7 +114,8 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
       setAllDataForDate([]);
       return;
     }
-    const isPrecursor = group === 'recall-precursor';
+    let ignore = false;
+    const isPrecursor = effectiveGroup === 'recall-precursor';
     const effectiveEnd = isPrecursor ? (form.endDate || form.startDate) : form.startDate;
 
     if (isPrecursor && form.endDate && new Date(form.startDate) > new Date(form.endDate)) {
@@ -140,31 +128,38 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
     setAllDataForDate([]);
     setDaftarGenerated(false);
     setDaftarPemusnahan([]);
+    setSelectedRequestIds([]);
     setForm(prev => ({ ...prev, bagian: "" }));
 
     dataAPI.getAvailableRequestsForDailyLog({
       startDate: form.startDate,
       endDate: effectiveEnd,
-      group: group || undefined
+      group: effectiveGroup
     }).then(res => {
+      if (ignore) return;
       if (res.data.success) {
         setAllDataForDate(res.data.data || []);
       } else {
         setAllDataForDate([]);
       }
     }).catch(() => {
+      if (ignore) return;
       setAllDataForDate([]);
     }).finally(() => {
+      if (ignore) return;
       setLoadingDataForDate(false);
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.startDate, form.endDate]);
+    return () => {
+      ignore = true;
+    };
+  }, [form.startDate, form.endDate, effectiveGroup]);
 
   // Reset daftar pemusnahan when bagian changes
   useEffect(() => {
     if (daftarGenerated) {
       setDaftarGenerated(false);
       setDaftarPemusnahan([]);
+      setSelectedRequestIds([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.bagian]);
@@ -193,7 +188,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
   }, [form, daftarPemusnahan, user]);
 
   // Precursor & OOT group uses a date RANGE; all other groups use a single date
-  const isPrecursorGroup = group === 'recall-precursor';
+  const isPrecursorGroup = effectiveGroup === 'recall-precursor';
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -262,6 +257,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
     setAllDataForDate([]);
     setDaftarPemusnahan([]);
     setDaftarGenerated(false);
+    setSelectedRequestIds([]);
   };
 
   const hasFormData = () => {
@@ -286,7 +282,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
     resetForm();
     
     if (onNavigate) {
-      onNavigate("berita-acara");
+      onNavigate("berita-acara", beritaAcaraPageContext);
     }
   };
 
@@ -305,7 +301,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
     resetForm();
     
     if (onNavigate) {
-      onNavigate("berita-acara");
+      onNavigate("berita-acara", beritaAcaraPageContext);
     }
   };
 
@@ -373,7 +369,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
           const [hh, mm, ss] = (form.jam || '00:00:00').split(':').map(Number);
           const dt = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
           return toJakartaIsoFromLocal(dt);
-        } catch (e) {
+        } catch {
           return toJakartaIsoFromLocal();
         }
       };
@@ -386,6 +382,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
       const beritaAcaraData = {
         waktu: buildLocalIso(), // send explicit Jakarta +07:00 ISO built from local inputs
         lokasi_verifikasi: form.lokasiVerifikasi,
+        golongan_group: effectiveGroup,
         // Include selected request IDs - backend will derive bagian and tanggal from these
         selectedRequestIds: selectedRequestIds
       };
@@ -402,7 +399,7 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
         setDaftarGenerated(false);
         setSelectedRequestIds([]);
         if (onNavigate) {
-          onNavigate("berita-acara");
+          onNavigate("berita-acara", beritaAcaraPageContext);
         }
       } else {
         await showApiError(response.data, "Failed to create berita acara");
@@ -522,28 +519,6 @@ const FormBeritaAcara = ({ onNavigate, group }) => {
                   <option value="Lapi kav. 22,24">Lapi Kav. 22,24</option>
                 </select>
               </div>
-              {!isPrecursorGroup && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bagian</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white disabled:bg-gray-50 disabled:text-gray-500"
-                    name="bagian"
-                    value={form.bagian}
-                    onChange={handleFormChange}
-                    disabled={!form.startDate || loadingDataForDate}
-                  >
-                    <option value="">
-                      {!form.startDate ? '-- Pilih tanggal dulu --' : loadingDataForDate ? 'Memuat...' : availableDepartmentsForDate.length === 0 ? '-- Tidak ada data --' : '-- Pilih Bagian --'}
-                    </option>
-                    {availableDepartmentsForDate.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {loadingDataForDate ? 'Memuat bagian yang tersedia...' : form.startDate && availableDepartmentsForDate.length === 0 ? 'Tidak ada data untuk tanggal ini' : 'Satu BAP hanya untuk satu bagian'}
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Row 2: Bagian single select for all groups */}

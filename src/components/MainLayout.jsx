@@ -18,10 +18,13 @@ import WorkflowAdmin from "../pages/WorkflowAdmin"
 import PrintPermohonan from "../pages/PrintPermohonan"
 import PrintBeritaAcara from "../pages/PrintBeritaAcara"
 import AuditLogDownload from "../pages/AuditLogDownload"
+import { getBapPageAlias, loadBapFormContext, normalizeBapGroup } from "../utils/beritaAcaraContext"
 
 // Get current page and id from URL
 const getCurrentPageFromURL = () => {
   let path = window.location.pathname
+  const query = new URLSearchParams(window.location.search)
+  const queryGroup = query.get('group')
   
   // Remove base path if present (e.g., /ePemusnahanLimbah)
   const basePath = getBasePath();
@@ -42,14 +45,27 @@ const getCurrentPageFromURL = () => {
   }
   if (normalized === "/tambah-ajuan-pemusnahan") return { page: "tambah-ajuan-pemusnahan" }
   if (normalized === "/pending-approvals") return { page: "pending-approvals" }
-  if (normalized === "/berita-acara") return { page: "berita-acara" }
+  if (normalized === "/berita-acara") {
+    if (queryGroup) {
+      const group = normalizeBapGroup(queryGroup)
+      return { page: "berita-acara", group, pageAlias: getBapPageAlias(group) }
+    }
+    return { page: "berita-acara" }
+  }
   if (normalized === "/detail-berita-acara") return { page: "berita-acara" }
   if (normalized.startsWith("/detail-berita-acara/")) {
     const parts = normalized.split('/')
     const id = parts.length >= 3 ? parts[2] : null
     return { page: "detail-berita-acara", id }
   }
-  if (normalized === "/tambah-berita-acara") return { page: "tambah-berita-acara" }
+  if (normalized === "/tambah-berita-acara") {
+    if (queryGroup) {
+      const group = normalizeBapGroup(queryGroup)
+      return { page: "tambah-berita-acara", group, pageAlias: getBapPageAlias(group) }
+    }
+    const savedContext = loadBapFormContext()
+    return { page: "tambah-berita-acara", ...(savedContext || {}) }
+  }
   if (normalized === "/notifications") return { page: "notifications" }
   if (normalized === "/workflow-admin") return { page: "workflow-admin" }
   if (normalized === "/settings") return { page: "settings" }
@@ -70,10 +86,10 @@ const getCurrentPageFromURL = () => {
 
 const MainLayout = () => {
   const initial = getCurrentPageFromURL()
-  const [currentPage, setCurrentPage] = useState(initial.page)
+  const [currentPage, setCurrentPage] = useState(initial.pageAlias || initial.page)
   const [routePage, setRoutePage] = useState(initial.page)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true)
-  const [pageData, setPageData] = useState(initial.id ? { id: initial.id } : null) // Store data passed between pages
+  const [pageData, setPageData] = useState(initial.id ? { id: initial.id } : initial.group ? initial : null) // Store data passed between pages
   const [hasPendingApproval, setHasPendingApproval] = useState(false)
   const [pendingApprovalByGroup, setPendingApprovalByGroup] = useState({
     'limbah-b3': 0,
@@ -85,9 +101,9 @@ const MainLayout = () => {
     // Handle browser back/forward buttons
     const handlePopState = () => {
       const current = getCurrentPageFromURL()
-      setCurrentPage(current.page)
+      setCurrentPage(current.pageAlias || current.page)
       setRoutePage(current.page)
-      setPageData(current.id ? { id: current.id } : null)
+      setPageData(current.id ? { id: current.id } : current.group ? current : null)
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -170,7 +186,7 @@ const MainLayout = () => {
     if (data) setPageData(data)
     else {
       const parsed = getCurrentPageFromURL()
-      setPageData(parsed.id ? { id: parsed.id } : null)
+      setPageData(parsed.id ? { id: parsed.id } : parsed.group ? parsed : null)
     }
   }
 

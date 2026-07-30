@@ -3,11 +3,12 @@ import BeritaAcaraDataTable from "../components/BeritaAcaraDataTable";
 import { useAuth } from "../contexts/AuthContext";
 import { dataAPI } from "../services/api";
 import { showInfo } from "../utils/sweetAlert";
+import { getBapPageAlias, normalizeBapGroup, saveBapFormContext } from "../utils/beritaAcaraContext";
 
 const BeritaAcara = ({ onNavigate, onPendingApprovalChange, pendingApprovalByGroup, group, viewMode }) => {
   const { user } = useAuth();
   const [isCreatorAllowed, setIsCreatorAllowed] = useState(false);
-  const [creatorCheckLoading, setCreatorCheckLoading] = useState(true);
+  const [, setCreatorCheckLoading] = useState(true);
 
   // Show "Tambah Berita Acara" to users registered in external approval API:
   //   - KL officers:  Appr_No=1 (Supervisor/Officer) or Appr_No=2 (Manager) — all groups
@@ -59,9 +60,13 @@ const BeritaAcara = ({ onNavigate, onPendingApprovalChange, pendingApprovalByGro
   }, [user, group]);
 
   const handleAddBeritaAcara = () => {
+    const groupContext = normalizeBapGroup(group);
+    const pageAlias = getBapPageAlias(groupContext);
+    saveBapFormContext({ group: groupContext, pageAlias });
+
     // Navigate to form page with group context
     if (onNavigate) {
-      onNavigate("tambah-berita-acara", { group });
+      onNavigate("tambah-berita-acara", { group: groupContext, pageAlias });
     } else {
       showInfo("Add berita acara functionality will be implemented here");
     }
