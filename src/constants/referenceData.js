@@ -214,6 +214,7 @@ export const NAMA_LIMBAH_PRODUK_OPTIONS = [
   { value: 'Lacoldin Sirup', label: 'Lacoldin Sirup' },
   { value: 'Lacoldin Tablet', label: 'Lacoldin Tablet' },
   { value: 'Lanos Drops', label: 'Lanos Drops' },
+  { value: 'Lanos Kapsul', label: 'Lanos Kapsul' },
   { value: 'Lanos Plus Sirup', label: 'Lanos Plus Sirup' },
   { value: 'Lapifed DM Sirup', label: 'Lapifed DM Sirup' },
   { value: 'Lapifed Ekspektoran Sirup', label: 'Lapifed Ekspektoran Sirup' },
@@ -222,6 +223,7 @@ export const NAMA_LIMBAH_PRODUK_OPTIONS = [
   { value: 'Lapisiv Sirup', label: 'Lapisiv Sirup' },
   { value: 'Lapisiv-T Tablet', label: 'Lapisiv-T Tablet' },
   { value: 'Pseudoefedrin Drops', label: 'Pseudoefedrin Drops' },
+  { value: 'Simtram', label: 'Simtram' },
 ];
 
 // Status mapping constants
